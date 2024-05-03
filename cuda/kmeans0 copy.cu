@@ -7,7 +7,8 @@
 #include <string>
 #include <cstdio>
 
-#define MAX_ERR 1e-10
+#define N 10000000
+#define MAX_ERR 1e-6
 
 __device__ float euclideanDistance(float *point, float *centroid, int nDimensions){
     float sum = 0;
@@ -16,13 +17,8 @@ __device__ float euclideanDistance(float *point, float *centroid, int nDimension
     }
     return sqrt(sum);
 }
-__global__ void closestCentroid(float *points, float *centroids, int *labels, int *counts, int nPoints, int nDimensions, int nCentroids){
+__global__ void closestCentroid(float *points, float *centroids, int *labels, int nPoints, int nDimensions, int nCentroids){
     int index = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if(index < nCentroids){
-        counts[index] = 0;
-    }
-
     if(index < nPoints){
         float minDistance = euclideanDistance(points + index * nDimensions, centroids, nDimensions);
         labels[index] = 0;
@@ -36,7 +32,8 @@ __global__ void closestCentroid(float *points, float *centroids, int *labels, in
     }
 }
 
-__global__ void aggregateCentroids(float *points, float *centroids, int *counts, int *labels, int nPoints, int nDimensions, int nCentroids){
+__global__ void updateCentroids(float *points, float *centroids, float *oldCentroids, int *counts, int *labels, int nPoints, int nDimensions, int nCentroids, float* error_val){
+    extern __shared__ float error[];
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     if(index < nPoints){
         int label = labels[index];
@@ -45,18 +42,14 @@ __global__ void aggregateCentroids(float *points, float *centroids, int *counts,
         }
         atomicAdd(counts + label, 1);
     }
-}
-
-__global__ void updateCentroids(float *centroids, float *oldCentroids, int *counts, int nDimensions, int nCentroids, float* error_val){
-    extern __shared__ float error[];
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    // calculate mean and error
     if(index < nCentroids * nDimensions){
-        // mean calculations
         int label = index / nDimensions;
         centroids[index] /= counts[label];
         error[index] = abs(centroids[index] - oldCentroids[index]);
-
-        // reduction step
+    }
+    // apply reduction get error in error[0]
+    if(index < nCentroids * nDimensions){
         int n = nCentroids * nDimensions;
         for (int stride = n / 2; stride > 0; stride >>= 1) {
             __syncthreads();
@@ -78,7 +71,7 @@ float * allocateMatrix(int n, int m) {
 }
 
 
-void freeMatrix(float * matrix) {
+void freeMatrix(float * matrix, int n) {
     free(matrix);
 }
 
@@ -109,38 +102,8 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
     cudaMemcpy(d_centroids, centroids, nCentroids * nDimensions * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(d_oldCentroids, centroids, nCentroids * nDimensions * sizeof(float), cudaMemcpyHostToDevice);
 
-    // Launch Kernel
-    int threadsPerBlock = 256;
-    int blocksPerGrid = (nPoints + threadsPerBlock - 1) / threadsPerBlock;
-    int threadsPerBlockCentroids = nCentroids * nDimensions;
-    int blocksPerGridCentroids = 1;
-    for(int i = 0; i < maxIters; i++){
-        printf("Iteration %d\n", i);
-        closestCentroid<<<blocksPerGrid, threadsPerBlock>>>(d_points, d_centroids, d_labels, d_counts, nPoints, nDimensions, nCentroids);
-        printf("Closest Centroid Done\n");
-        aggregateCentroids<<<blocksPerGrid, threadsPerBlock>>>(d_points, d_centroids, d_counts, d_labels, nPoints, nDimensions, nCentroids);
-        printf("Aggregate Centroids Done\n");
-        updateCentroids<<<blocksPerGridCentroids, threadsPerBlockCentroids, nCentroids * nDimensions * sizeof(float)>>>(d_centroids, d_oldCentroids, d_counts, nDimensions, nCentroids, error_val);
-        printf("Update Centroids Done\n");
-        cudaMemcpy(d_oldCentroids, d_centroids, nCentroids * nDimensions * sizeof(float), cudaMemcpyDeviceToDevice);
-        float error;
-        cudaMemcpy(&error, error_val, sizeof(float), cudaMemcpyDeviceToHost);
-        if(error < MAX_ERR){
-            printf("Converged\n");
-            break;
-        }
-    }
-    cudaMemcpy(centroids, d_centroids, nCentroids * nDimensions * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(labels, d_labels, nPoints * sizeof(int), cudaMemcpyDeviceToHost);
-    printf("Done\n");
 
-    // Free memory
-    cudaFree(d_points);
-    cudaFree(d_centroids);
-    cudaFree(d_oldCentroids);
-    cudaFree(d_labels);
-    cudaFree(d_counts);
-    cudaFree(error_val);
+
 }
 
 FILE* openFile(char* filename, char* mode){
@@ -177,19 +140,6 @@ void printData(int nPoints, int nDimensions, int nCentroids, int maxIters, float
         printf("\n");
     }
 }
-
-void writeData(FILE *file,float *centroids, int *labels, int nPoints, int nDimensions, int nCentroids){
-    for(int i = 0; i < nCentroids; i++){
-        for(int j = 0; j < nDimensions; j++){
-            fprintf(file, "%f ", centroids[i*nDimensions+j]);
-        }
-        fprintf(file, "\n");
-    }
-    for(int i = 0; i < nPoints; i++){
-        fprintf(file, "%d\n", labels[i]);
-    }
-
-}
 int main(int argc, char *argv[]){
     if (argc != 3)
     {
@@ -206,12 +156,6 @@ int main(int argc, char *argv[]){
     // printData(nPoints, nDimensions, nCentroids, maxIters, points, centroids);
     int *labels = (int*)malloc(nPoints * sizeof(int));
     kmeans(points, centroids, labels, nPoints, nDimensions, nCentroids, maxIters);
-    // write output
-    writeData(outputFile, centroids, labels, nPoints, nDimensions, nCentroids);
-    // free memory
-    freeMatrix(points);
-    freeMatrix(centroids);
-    free(labels);
-    fclose(inputFile);
-    fclose(outputFile);
+
+    
 }
