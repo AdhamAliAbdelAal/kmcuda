@@ -3,7 +3,8 @@ using namespace std;
 
 int k, n, dim;
 
-bool read_data(string input_file, double*& data, int*& labels) {
+bool read_data(string input_file, double*& data, int*& labels,
+               double*& target) {
   FILE* file = freopen(input_file.c_str(), "r", stdin);
   if (file == NULL) {
     cout << "Cannot open file " << input_file << endl;
@@ -14,6 +15,12 @@ bool read_data(string input_file, double*& data, int*& labels) {
   cout << "k = " << k << ", n = " << n << ", dim = " << dim << endl;
   data = (double*)malloc(sizeof(double) * n * dim);
   labels = (int*)malloc(sizeof(int) * n);
+  target = (double*)malloc(sizeof(double) * dim);
+
+  for (int i = 0; i < dim; i++) {
+    cin >> target[i];
+  }
+
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < dim; j++) {
       cin >> data[i * dim + j];
@@ -40,7 +47,12 @@ bool write_data(string output_file, double* output) {
   return true;
 }
 
-void print_top(double* data, int* labels, int n) {
+void print_top(double* data, int* labels, int n, double* target) {
+  cout << "Target data: ";
+  for (int i = 0; i < dim; i++) {
+    cout << target[i] << " ";
+  }
+  cout << endl;
   cout << "Top " << n << " data:" << endl;
   for (int i = 0; i < n; i++) {
     cout << "Data " << i << ": ";
@@ -52,7 +64,7 @@ void print_top(double* data, int* labels, int n) {
 }
 
 __global__ void knn(double* data, int* labels, int n, int dim, double* output,
-                    int k) {
+                    int k, double* target) {
   // print thread info
   printf("Thread %d %d\n", threadIdx.x, blockIdx.x);
 
@@ -77,37 +89,32 @@ int main(int argc, char** argv) {
 
   double* data = NULL;
   int* labels = NULL;
+  double* target = NULL;
 
   // Read data
-  read_data(input_file, data, labels);
+  read_data(input_file, data, labels, target);
 
   // Print top 5 data
-  print_top(data, labels, 2);
-
-  // allocate memory for output
-  double* output = (double*)malloc(sizeof(double) * k * dim);
-
-  // add dummy data to output
-  for (int i = 0; i < k; i++) {
-    for (int j = 0; j < dim; j++) {
-      output[i * dim + j] = 0;
-    }
-  }
+  print_top(data, labels, n, target);
 
   // allocate device memory
   double* d_data;
   int* d_labels;
   double* d_output;
+  double* d_target;
   cudaMalloc(&d_data, sizeof(double) * n * dim);
   cudaMalloc(&d_labels, sizeof(int) * n);
   cudaMalloc(&d_output, sizeof(double) * k * dim);
+  cudaMalloc(&d_target, sizeof(double) * dim);
 
   // copy data to device
   cudaMemcpy(d_data, data, sizeof(double) * n * dim, cudaMemcpyHostToDevice);
   cudaMemcpy(d_labels, labels, sizeof(int) * n, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_output, target, sizeof(double) * k * dim,
+             cudaMemcpyHostToDevice);
 
   // call kernel
-  knn<<<1, 1>>>(d_data, d_labels, n, dim, d_output, k);
+  knn<<<1, 1>>>(d_data, d_labels, n, dim, d_output, k, d_target);
 
   // wait for kernel to finish
   cudaDeviceSynchronize();
@@ -118,6 +125,9 @@ int main(int argc, char** argv) {
     cout << "Error: " << cudaGetErrorString(error) << endl;
     return 1;
   }
+
+  // allocate memory for output
+  double* output = (double*)malloc(sizeof(double) * k * dim);
 
   // copy output back to host
   cudaMemcpy(output, d_output, sizeof(double*) * k, cudaMemcpyDeviceToHost);
