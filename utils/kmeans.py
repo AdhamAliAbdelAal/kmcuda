@@ -27,11 +27,12 @@ def kmeans(n_points, n_features, n_clusters, max_iter, output_file, result_file)
         for j in range(n_clusters):
             centroids[j] = np.mean(points[labels == j], axis=0)
         # error is abs sum of difference between old and new centroids
-        error = np.abs(np.sum(centroids - old_centroids))
+        error = np.sum(np.abs(centroids - old_centroids))
         print(f"Error: {error}")
         if error < 1e-6:
             print(f"Converged after {i} iterations")
             break
+        old_centroids = centroids.copy()
 
     with open(result_file, 'w') as f:
         for i in range(n_clusters):

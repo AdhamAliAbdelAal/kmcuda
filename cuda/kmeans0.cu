@@ -5,7 +5,9 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <string>
+#include <iostream>
 #include <cstdio>
+using namespace std;
 
 #define MAX_ERR 1e-6
 
@@ -117,18 +119,20 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
     for(int i = 0; i < maxIters; i++){
         printf("Iteration %d\n", i);
         closestCentroid<<<blocksPerGrid, threadsPerBlock>>>(d_points, d_centroids, d_labels, d_counts, nPoints, nDimensions, nCentroids);
-        printf("Closest Centroid Done\n");
+        // printf("Closest Centroid Done\n");
         aggregateCentroids<<<blocksPerGrid, threadsPerBlock>>>(d_points, d_centroids, d_counts, d_labels, nPoints, nDimensions, nCentroids);
-        printf("Aggregate Centroids Done\n");
+        // printf("Aggregate Centroids Done\n");
         updateCentroids<<<blocksPerGridCentroids, threadsPerBlockCentroids, nCentroids * nDimensions * sizeof(float)>>>(d_centroids, d_oldCentroids, d_counts, nDimensions, nCentroids, error_val);
-        printf("Update Centroids Done\n");
-        cudaMemcpy(d_oldCentroids, d_centroids, nCentroids * nDimensions * sizeof(float), cudaMemcpyDeviceToDevice);
+        // printf("Update Centroids Done\n");
         float error;
         cudaMemcpy(&error, error_val, sizeof(float), cudaMemcpyDeviceToHost);
+        printf("Error: %f\n", error);
         if(error < MAX_ERR){
             printf("Converged\n");
             break;
         }
+        cudaMemcpy(d_oldCentroids, d_centroids, nCentroids * nDimensions * sizeof(float), cudaMemcpyDeviceToDevice);
+
     }
     cudaMemcpy(centroids, d_centroids, nCentroids * nDimensions * sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(labels, d_labels, nPoints * sizeof(int), cudaMemcpyDeviceToHost);
@@ -143,8 +147,8 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
     cudaFree(error_val);
 }
 
-FILE* openFile(char* filename, char* mode){
-    FILE* file = fopen(filename, mode);
+FILE* openFile(char* filename, string mode){
+    FILE* file = fopen(filename, mode.c_str());
     if (file == NULL){
         printf("Error: file not found\n");
         exit(1);

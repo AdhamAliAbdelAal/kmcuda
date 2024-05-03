@@ -9,9 +9,9 @@ max_iter = int(sys.argv[4])
 output_file = sys.argv[5]
 result_file = sys.argv[6]
 
-centroids = np.random.rand(n_clusters, n_features).astype(np.float32)*1000
+centroids = (np.random.rand(n_clusters, n_features).astype(np.float32)*1000).astype(np.int32)
 
-points = np.random.rand(n_points, n_features).astype(np.float32)*1000
+points = (np.random.rand(n_points, n_features).astype(np.float32)*1000).astype(np.int32)
 
 # run kmeans to get the labels
 kmeans = KMeans(n_clusters=n_clusters, max_iter=max_iter, init=centroids).fit(points)

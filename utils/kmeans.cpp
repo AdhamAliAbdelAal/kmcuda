@@ -23,8 +23,8 @@ void readMatrix(FILE* file, float* A, int m, int n){
     }
 }
 
-FILE* openFile(char* filename, char* mode){
-    FILE* file = fopen(filename, mode);
+FILE* openFile(char* filename, string mode){
+    FILE* file = fopen(filename, mode.c_str());
     if (file == NULL){
         printf("Error: file not found\n");
         exit(1);
@@ -75,7 +75,7 @@ float euclideanDistance(float *point, float *centroid, int nDimensions){
     for(int i = 0; i < nDimensions; i++){
         distance += (point[i] - centroid[i]) * (point[i] - centroid[i]);
     }
-    return sqrt(distance);
+    return distance;
 }
 
 void assignLabels(float *points, float *centroids, int *labels, int nPoints, int nDimensions, int nCentroids){
@@ -134,9 +134,10 @@ void kmeans(float *points, float *centroids, int *labels, int nPoints, int nDime
     for(int i=0;i<maxIters;i++){
         printf("Iteration %d\n", i);
         assignLabels(points, centroids, labels, nPoints, nDimensions, nCentroids);
-        printf("Assign labels Done\n");
+        // printf("Assign labels Done\n");
         updateCentroids(points, centroids, labels, nPoints, nDimensions, nCentroids);
         float error = getError(oldCentroids, centroids, nDimensions, nCentroids);
+        printf("Error = %f\n", error);
         if (error < MAX_ERR){
             break;
         }
