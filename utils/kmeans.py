@@ -12,8 +12,8 @@ points = None
 centroids = None
 with open(inputFile, 'r') as f:
     n_points, n_features, n_clusters, max_iter = map(int, f.readline().split())
-    centroids = np.array([list(map(float, f.readline().split())) for _ in range(n_clusters)])
-    points = np.array([list(map(float, f.readline().split())) for _ in range(n_points)])
+    centroids = np.array([list(map(float, f.readline().split())) for _ in range(n_clusters)]).astype(np.float32)
+    points = np.array([list(map(float, f.readline().split())) for _ in range(n_points)]).astype(np.float32)
     # print(centroids)
 
 

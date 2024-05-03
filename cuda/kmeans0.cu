@@ -7,14 +7,14 @@
 #include <string>
 #include <cstdio>
 
-#define MAX_ERR 1e-10
+#define MAX_ERR 1e-6
 
 __device__ float euclideanDistance(float *point, float *centroid, int nDimensions){
     float sum = 0;
     for(int i = 0; i < nDimensions; i++){
         sum += (point[i] - centroid[i]) * (point[i] - centroid[i]);
     }
-    return sqrt(sum);
+    return sum;
 }
 __global__ void closestCentroid(float *points, float *centroids, int *labels, int *counts, int nPoints, int nDimensions, int nCentroids){
     int index = blockIdx.x * blockDim.x + threadIdx.x;
