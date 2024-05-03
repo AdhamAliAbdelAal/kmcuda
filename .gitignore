@@ -1,3 +1,5 @@
 ## VS code ##
 .vscode
 tests
+out
+./knn.out
