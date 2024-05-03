@@ -1,4 +1,4 @@
-<Number of points> <Dimension of points> <Number of clusters> <Number of iterations> <Max number of iterations>
+<Number of points> <Dimension of points> <Number of clusters> <Max number of iterations>
 centroid00 centroid01 ... centroid0d
 centroid10 centroid11 ... centroid1d
 ...
