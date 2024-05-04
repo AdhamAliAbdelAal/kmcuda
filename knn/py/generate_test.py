@@ -36,3 +36,48 @@ with open(output_file, "w") as file:
 
 
 print("Result written to file:", output_file)
+
+
+# k nearest neighbors
+# Path: knn/py/knn.py
+import numpy as np
+from collections import Counter
+
+
+def euclidean_distance(x1, x2):
+    return np.sqrt(np.sum((x1 - x2) ** 2))
+
+
+def knn(X, y, query_point, k=5):
+    # Step 1: Compute the distances and indices
+    distances = []
+    for i in range(X.shape[0]):
+        distance = euclidean_distance(X[i], query_point)
+        distances.append((distance, y[i], i))
+
+    # Step 2: Sort the distances
+    distances = sorted(distances)
+    
+    # Step 3: Pick the first k points
+    distances = distances[:k]
+
+    # Step 4: Get the labels and indices
+    labels = np.array([label for _, label, _ in distances])
+    indices = np.array([index for _, _, index in distances])
+
+    # Step 5: Get the majority vote
+    majority_vote = Counter(labels).most_common(1)[0][0]
+    
+    return majority_vote, indices
+
+    
+
+# output result to a file
+output_dir = "results"
+output_file = f"{output_dir}/result_{array_size}_{dim}.txt"
+with open(output_file, "w") as file:
+    # write the result
+    majority_vote, indices = knn(array, labels, test_example, k=k)
+    file.write(f"{majority_vote}\n")
+    file.write(" ".join(map(str, indices)) + "\n")
+
