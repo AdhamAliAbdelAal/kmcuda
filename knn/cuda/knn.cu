@@ -66,14 +66,10 @@ void print_top(double *data, int *labels, int n, double *target) {
 __device__ double euclidean_distance(double *data, int idx, double *target,
                                      int dim) {
   double sum = 0;
-  printf("element %d: (", idx);
   for (int i = 0; i < dim; i++) {
-    // print element
-    printf("%f, ", data[idx * dim + i]);
     sum +=
         (data[idx * dim + i] - target[i]) * (data[idx * dim + i] - target[i]);
   }
-  printf(", sum = %f)\n", sqrt(sum));
   return sqrt(sum);
 }
 
@@ -83,9 +79,9 @@ __device__ void sortElements(double *data, int startElement, int endElement,
   double *distances = (double *)malloc(sizeof(double) * k);
   for (int i = startElement; i <= endElement; i++) {
     double dist = euclidean_distance(data, i, target, dim);
-    if (i < k) {
-      distances[i] = dist;
-      nearesrtNeighborsIdxs[i] = i;
+    if (i - startElement < k) {
+      distances[i - startElement] = dist;
+      nearesrtNeighborsIdxs[i - startElement] = i;
     } else {
       int maxIdx = 0;
       for (int j = 1; j < k; j++) {
@@ -102,32 +98,64 @@ __device__ void sortElements(double *data, int startElement, int endElement,
 }
 
 __global__ void knn(double *data, int *labels, int threadSize, int n, int dim,
-                    int k, double *target) {
+                    int k, double *target, double *output) {
   // print thread info
-  printf("Thread %d %d\n", threadIdx.x, blockIdx.x);
-
   int startElement = (blockIdx.x * blockDim.x + threadIdx.x) * threadSize;
   int endElement =
-      startElement + threadSize < n ? startElement + threadSize : n - 1;
-  // pritn start and end element
-  printf("Start element: %d, End element: %d\n", startElement, endElement);
-  int *nearesrtNeighborsIdxs = (int *)malloc(sizeof(int) * k);
-  sortElements(data, startElement, endElement, target, k, nearesrtNeighborsIdxs,
-               dim);
-  // DEBUG print nearest neighbors
-  for (int i = 0; i < k; i++) {
-    printf("Nearest neighbor %d: %d\n", i, nearesrtNeighborsIdxs[i]);
-  }
+      startElement + threadSize < n ? startElement + threadSize - 1 : n - 1;
+  int totalElements = endElement - startElement + 1;
+  k = k < totalElements ? k : totalElements;
 
-  // copy elements to data again
-  int startElementCopy = (blockIdx.x * blockDim.x + threadIdx.x) * k;
-  int endElementCopy = startElementCopy + k < n ? startElementCopy + k : n - 1;
-  for (int i = startElementCopy; i <= endElementCopy; i++) {
-    for (int j = 0; j < dim; j++) {
-      data[i * dim + j] = data[nearesrtNeighborsIdxs[i] * dim + j];
+  if (startElement < n) {
+    printf("Start element: %d, End element: %d\n", startElement, endElement);
+    int *nearesrtNeighborsIdxs = (int *)malloc(sizeof(int) * k);
+    sortElements(data, startElement, endElement, target, k,
+                 nearesrtNeighborsIdxs, dim);
+    // copy elements to data again
+    int startElementCopy = (blockIdx.x * blockDim.x + threadIdx.x) * k;
+    int endElementCopy = startElementCopy + k - 1;
+    printf("Start element copy: %d, End element copy: %d\n", startElementCopy,
+           endElementCopy);
+    for (int i = startElementCopy; i <= endElementCopy; i++) {
+      for (int j = 0; j < dim; j++) {
+        output[i * dim + j] =
+            data[nearesrtNeighborsIdxs[i - startElementCopy] * dim + j];
+      }
+    }
+    free(nearesrtNeighborsIdxs);
+  }
+}
+
+__host__ void bubbleSortResult(double *output, double *target) {
+  for (int i = 0; i < k; i++) {
+    for (int j = i + 1; j < k; j++) {
+      double dist1 = 0;
+      double dist2 = 0;
+      for (int l = 0; l < dim; l++) {
+        dist1 += (output[i * dim + l] - target[l]) *
+                 (output[i * dim + l] - target[l]);
+        dist2 += (output[j * dim + l] - target[l]) *
+                 (output[j * dim + l] - target[l]);
+      }
+      if (dist1 > dist2) {
+        for (int l = 0; l < dim; l++) {
+          double temp = output[i * dim + l];
+          output[i * dim + l] = output[j * dim + l];
+          output[j * dim + l] = temp;
+        }
+      }
     }
   }
-  free(nearesrtNeighborsIdxs);
+
+  // print sorted output
+  cout << "Sorted output:" << endl;
+  for (int i = 0; i < k; i++) {
+    cout << "Data " << i << ": ";
+    for (int j = 0; j < dim; j++) {
+      cout << output[i * dim + j] << " ";
+    }
+    cout << endl;
+  }
 }
 
 int main(int argc, char **argv) {
@@ -145,16 +173,19 @@ int main(int argc, char **argv) {
   // Read data
   read_data(input_file, data, labels, target);
 
+  int threadSize = 2 * k;
+
   // Print top 5 data
   // print_top(data, labels, n, target);
 
   // allocate device memory
-  double *d_data;
+  double *d_data, *d_data2, *d_target;
   int *d_labels;
-  double *d_target;
+
   cudaMalloc(&d_data, sizeof(double) * n * dim);
   cudaMalloc(&d_labels, sizeof(int) * n);
   cudaMalloc(&d_target, sizeof(double) * dim);
+  cudaMalloc(&d_data2, sizeof(double) * n * dim);
 
   // copy data to device
   cudaMemcpy(d_data, data, sizeof(double) * n * dim, cudaMemcpyHostToDevice);
@@ -162,12 +193,30 @@ int main(int argc, char **argv) {
   cudaMemcpy(d_target, target, sizeof(double) * dim, cudaMemcpyHostToDevice);
 
   // call kernel
-  // int threadSize = 2 * k;
-  int threadSize = n;
-  knn<<<1, 1>>>(d_data, d_labels, threadSize, n, dim, k, d_target);
+  int i = 0;
+  while (n != k) {
+    int threadsPerBlock = 256;
+    int blocksPerGrid = (n + threadSize - 1) / threadSize;
 
-  // wait for kernel to finish
-  cudaDeviceSynchronize();
+    if (i % 2 == 0) {
+      knn<<<blocksPerGrid, threadsPerBlock>>>(d_data, d_labels, threadSize, n,
+                                              dim, k, d_target, d_data2);
+    } else {
+      knn<<<blocksPerGrid, threadsPerBlock>>>(d_data2, d_labels, threadSize, n,
+                                              dim, k, d_target, d_data);
+    }
+    i++;
+    int numKs = n / (threadSize);
+    int rem = n % (threadSize);
+    n = numKs * k;
+    if (rem < k) {
+      n += rem;
+    } else {
+      n += k;
+    }
+    // wait for kernel to finish
+    cudaDeviceSynchronize();
+  }
 
   // check for errors
   cudaError_t error = cudaGetLastError();
@@ -181,6 +230,18 @@ int main(int argc, char **argv) {
 
   // copy output from device to host
   cudaMemcpy(output, d_data, sizeof(double) * k * dim, cudaMemcpyDeviceToHost);
+
+  // // print output
+  // cout << "Output:" << endl;
+  // for (int i = 0; i < k; i++) {
+  //   cout << "Data " << i << ": ";
+  //   for (int j = 0; j < dim; j++) {
+  //     cout << output[i * dim + j] << " ";
+  //   }
+  //   cout << endl;
+  // }
+  // sort output
+  bubbleSortResult(output, target);
 
   // free device memory
   cudaFree(d_data);
