@@ -39,6 +39,9 @@ bool write_data(string output_file, double *output) {
   }
   for (int i = 0; i < k; i++) {
     for (int j = 0; j < dim; j++) {
+      // set precision to 10 decimal places
+      cout << fixed;
+      cout.precision(10);
       cout << output[i * dim + j] << " ";
     }
     cout << endl;
@@ -107,10 +110,15 @@ __global__ void knn(double *data, int *labels, int threadSize, int n, int dim,
   k = k < totalElements ? k : totalElements;
 
   if (startElement < n) {
-    printf("Start element: %d, End element: %d\n", startElement, endElement);
+    printf("Start element: %d, End element: %d k: %d\n", startElement,
+           endElement, k);
     int *nearesrtNeighborsIdxs = (int *)malloc(sizeof(int) * k);
     sortElements(data, startElement, endElement, target, k,
                  nearesrtNeighborsIdxs, dim);
+
+    // for (int i = 0; i < k; i++) {
+    //   printf("Nearest neighbor %d: %d\n", i, nearesrtNeighborsIdxs[i]);
+    // }
     // copy elements to data again
     int startElementCopy = (blockIdx.x * blockDim.x + threadIdx.x) * k;
     int endElementCopy = startElementCopy + k - 1;
@@ -152,8 +160,20 @@ __host__ void bubbleSortResult(double *output, double *target) {
   for (int i = 0; i < k; i++) {
     cout << "Data " << i << ": ";
     for (int j = 0; j < dim; j++) {
+      cout << fixed;
+      cout.precision(10);
       cout << output[i * dim + j] << " ";
     }
+
+    cout << "Distance: ";
+    double dist = 0;
+    for (int j = 0; j < dim; j++) {
+      dist +=
+          (output[i * dim + j] - target[j]) * (output[i * dim + j] - target[j]);
+    }
+    cout << fixed;
+    cout.precision(10);
+    cout << sqrt(dist);
     cout << endl;
   }
 }
@@ -194,7 +214,7 @@ int main(int argc, char **argv) {
 
   // call kernel
   int i = 0;
-  while (n != k) {
+  while (n > k) {
     int threadsPerBlock = 256;
     int blocksPerGrid = (n + threadSize - 1) / threadSize;
 
@@ -229,7 +249,12 @@ int main(int argc, char **argv) {
   double *output = (double *)malloc(sizeof(double) * k * dim);
 
   // copy output from device to host
-  cudaMemcpy(output, d_data, sizeof(double) * k * dim, cudaMemcpyDeviceToHost);
+  if (i % 2 == 0) {
+    cudaMemcpy(output, d_data, sizeof(double) * k * dim, cudaMemcpyDeviceToHost);
+  } else {
+    cudaMemcpy(output, d_data2, sizeof(double) * k * dim, cudaMemcpyDeviceToHost);
+  }
+  // cudaMemcpy(output, d_data, sizeof(double) * k * dim, cudaMemcpyDeviceToHost);
 
   // // print output
   // cout << "Output:" << endl;

@@ -17,7 +17,7 @@ def generate_test_case(array_size, dim=2, n_classes=2):
 # Example usage
 k = 5
 dim = 2
-array_size = 10000
+array_size = 8
 test_example, array, labels = generate_test_case(array_size, dim=dim)
 
 # Write the result to a file
