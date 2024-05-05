@@ -18,13 +18,8 @@ __device__ float euclideanDistance(float *point, float *centroid, int nDimension
     }
     return sum;
 }
-__global__ void closestCentroid(float *points, float *centroids, int *labels, int *counts, int nPoints, int nDimensions, int nCentroids){
+__global__ void closestCentroid(float *points, float *centroids, int *labels, int nPoints, int nDimensions, int nCentroids){
     int index = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if(index < nCentroids){
-        counts[index] = 0;
-    }
-
     if(index < nPoints){
         float minDistance = euclideanDistance(points + index * nDimensions, centroids, nDimensions);
         labels[index] = 0;
@@ -117,8 +112,9 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
     int threadsPerBlockCentroids = nCentroids * nDimensions;
     int blocksPerGridCentroids = 1;
     for(int i = 0; i < maxIters; i++){
+        cudaMemset(d_counts, 0, nCentroids * sizeof(int));
         printf("Iteration %d\n", i);
-        closestCentroid<<<blocksPerGrid, threadsPerBlock>>>(d_points, d_centroids, d_labels, d_counts, nPoints, nDimensions, nCentroids);
+        closestCentroid<<<blocksPerGrid, threadsPerBlock>>>(d_points, d_centroids, d_labels, nPoints, nDimensions, nCentroids);
         // printf("Closest Centroid Done\n");
         aggregateCentroids<<<blocksPerGrid, threadsPerBlock>>>(d_points, d_centroids, d_counts, d_labels, nPoints, nDimensions, nCentroids);
         // printf("Aggregate Centroids Done\n");
