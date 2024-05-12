@@ -13,7 +13,8 @@ print_yellow() {
 }
 
 print_yellow "Compiling knn.cu\n"
-nvcc cuda/*.cu -o "$exec_file"
+nvcc cuda-sort/*.cu -o "$exec_file"
 print_yellow "Running $exec_file with $test_file and saving output to $out_file\n"
-nvprof "./$exec_file" "$test_file" "$out_file"
+"./$exec_file" "$test_file" "$out_file"
+# nvprof "./$exec_file" "$test_file" "$out_file"
 # nvprof -o "$prof_file" "$exec_file" "$test_file" "$out_file"
