@@ -98,9 +98,10 @@ int main(int argc, char** argv)
         }
         printf("Distance: %f\n", sqrt(dist));
     }
-    int blockSize = 100;
-    int numBlocks = 5;
-    int elementsPerThread = 10;
+    printf("++++++++++++++++++++++++++++++\n");
+    int blockSize = 1;
+    int numBlocks = 3;
+    int elementsPerThread = 4;
     long long sortedSize = 2;
     while (sortedSize < n) {
         mergeSort<<<numBlocks, blockSize, 2 * n * dim * sizeof(double) + 2 * sizeof(long long)>>>(d_data, d_labels, d_target, n, dim, elementsPerThread, sortedSize);
