@@ -43,15 +43,15 @@ __device__ double euclidean_distance(double* data, int idx, double* target,
 __device__ unsigned int coRank(double* data, int dim, double* target, long long n, long long m, long long jOffset, long long iOffset, long long k)
 {
 
-    long long iLow = k + iOffset > m ? k + iOffset - m : iOffset;
-    long long iHigh = n < k ? n : k;
+    long long iLow = k - m > iOffset ? k - m : iOffset;
+    long long iHigh = n + iOffset < k ? n + iOffset : k;
     while (true) {
         long long i = (iHigh - iLow) / 2 + iLow;
-        long long j = k - i;
-        if (i > iOffset && j < m && euclidean_distance(data, i - 1, target, dim) > euclidean_distance(data, j, target, dim)) {
+        long long j = k - i + jOffset;
+        if (i > iOffset && j < m + jOffset && euclidean_distance(data, i - 1, target, dim) > euclidean_distance(data, j, target, dim)) {
             iHigh = i;
 
-        } else if (j > jOffset && i < n && euclidean_distance(data, j - 1, target, dim) > euclidean_distance(data, i, target, dim)) {
+        } else if (j > jOffset && i < n + iOffset && euclidean_distance(data, j - 1, target, dim) > euclidean_distance(data, i, target, dim)) {
             iLow = i;
         } else {
             return i;
@@ -147,8 +147,11 @@ __global__ void mergeSort(double* data, int* labels, double* target, long long n
         printf("blockIdx.x = %d iOffset: %lld\n", blockIdx.x, iOffset);
 
         long long jSize = n - jOffset < sortedSize ? n - jOffset : sortedSize;
-        iBlock = coRank(data, sortedSize, target, sortedSize, jSize, jOffset, iOffset, kBlock);
-        iNextBlock = coRank(data, sortedSize, target, sortedSize, jSize, jOffset, iOffset, kNextBlock);
+        if (jSize < 0) {
+            jSize = 0;
+        }
+        iBlock = coRank(data, dim, target, sortedSize, jSize, jOffset, iOffset, kBlock);
+        iNextBlock = coRank(data, dim, target, sortedSize, jSize, jOffset, iOffset, kNextBlock);
 
         jBlock = kBlock - iBlock + jOffset;
         jNextBlock = kNextBlock - iNextBlock + jOffset;
@@ -198,22 +201,20 @@ __global__ void mergeSort(double* data, int* labels, double* target, long long n
     double* output = sharedArr + elementsPerBlock * dim;
 
     long long k = threadIdx.x * threadSize;
-    if (numSegment < n) {
-        if (k < elementsPerBlock) {
-            long long i = coRank(sharedArr, dim, target, nBlock, mBlock, nBlock, 0, k);
-            long long j = k - i + nBlock;
-            long long kNext = k + threadSize < elementsPerBlock ? k + threadSize : elementsPerBlock;
-            long long iNext = coRank(sharedArr, dim, target, nBlock, mBlock, nBlock, 0, kNext);
-            long long jNext = kNext - iNext + nBlock;
+    if (numSegment < n && k < elementsPerBlock) {
+        long long i = coRank(sharedArr, dim, target, nBlock, mBlock, nBlock, 0, k);
+        long long j = k - i + nBlock;
+        long long kNext = k + threadSize < elementsPerBlock ? k + threadSize : elementsPerBlock;
+        long long iNext = coRank(sharedArr, dim, target, nBlock, mBlock, nBlock, 0, kNext);
+        long long jNext = kNext - iNext + nBlock;
 
-            // printf("threadIdx.x = %d k: %lld, i: %lld, iNext: %lld\n", threadIdx.x, k, i, iNext);
-            // printf("threadIdx.x = %d k: %lld, j: %lld, jNext: %lld\n", threadIdx.x, k, j, jNext);
+        // printf("threadIdx.x = %d k: %lld, i: %lld, iNext: %lld\n", threadIdx.x, k, i, iNext);
+        // printf("threadIdx.x = %d k: %lld, j: %lld, jNext: %lld\n", threadIdx.x, k, j, jNext);
 
-            // sequential merge
-            long long n = iNext - i;
-            long long m = jNext - j;
-            sequintialMergeSegment(sharedArr + i * dim, sharedArr + j * dim, output + k * dim, target, n, m, dim);
-        }
+        // sequential merge
+        long long n = iNext - i;
+        long long m = jNext - j;
+        sequintialMergeSegment(sharedArr + i * dim, sharedArr + j * dim, output + k * dim, target, n, m, dim);
     }
     __syncthreads();
 
