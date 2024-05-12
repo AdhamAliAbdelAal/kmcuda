@@ -43,7 +43,7 @@ __device__ double euclidean_distance(double* data, int idx, double* target,
 __device__ unsigned int coRank(double* data, int dim, double* target, long long n, long long m, long long jOffset, long long iOffset, long long k)
 {
 
-    long long iLow = k + Offset > m ? k + iOffset - m : iOffset;
+    long long iLow = k + iOffset > m ? k + iOffset - m : iOffset;
     long long iHigh = n < k ? n : k;
     while (true) {
         long long i = (iHigh - iLow) / 2 + iLow;
