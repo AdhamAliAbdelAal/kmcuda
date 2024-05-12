@@ -75,9 +75,9 @@ int main(int argc, char** argv)
     cudaMemcpy(d_data, data, sizeof(double) * n * dim, cudaMemcpyHostToDevice);
     cudaMemcpy(d_labels, labels, sizeof(int) * n, cudaMemcpyHostToDevice);
     cudaMemcpy(d_target, target, sizeof(double) * dim, cudaMemcpyHostToDevice);
-
+    long long sortedSize = 2;
     // call merge sort kernel
-    bubbleSort<<<100, 1>>>(d_data, d_labels, n, dim, d_target, 2);
+    bubbleSort<<<100, 1>>>(d_data, d_labels, n, dim, d_target, sortedSize);
 
     // sync
     cudaDeviceSynchronize();
@@ -99,16 +99,15 @@ int main(int argc, char** argv)
         printf("Distance: %f\n", sqrt(dist));
     }
     printf("++++++++++++++++++++++++++++++\n");
-    int blockSize = 1;
-    int numBlocks = 3;
-    int elementsPerThread = 4;
-    long long sortedSize = 2;
+    int elementsPerThread = sortedSize * 2;
+    int blockSize = 256;
+    int numBlocks = 100;
     while (sortedSize < n) {
         mergeSort<<<numBlocks, blockSize, 2 * n * dim * sizeof(double) + 2 * sizeof(long long)>>>(d_data, d_labels, d_target, n, dim, elementsPerThread, sortedSize);
         cudaDeviceSynchronize();
         sortedSize *= 2;
-        printf("== sortedSize: %lld\n", sortedSize);
-        printArr<<<1, 1>>>(d_data, n, dim, d_target);
+        // printf("== sortedSize: %lld\n", sortedSize);
+        // printArr<<<1, 1>>>(d_data, n, dim, d_target);
     }
 
     // check for errors
@@ -123,9 +122,27 @@ int main(int argc, char** argv)
     int* labelsOutput = (int*)malloc(sizeof(int) * k);
 
     // copy output from device to host
+    cudaMemcpy(output, d_data, sizeof(double) * k * dim, cudaMemcpyDeviceToHost);
 
-    // sort output
-    // bubbleSortResult(output, target);
+    // print top k data
+    for (int i = 0; i < k; i++) {
+        cout << "Data " << i << ": ";
+        for (int j = 0; j < dim; j++) {
+            cout << fixed;
+            cout.precision(10);
+            cout << output[i * dim + j] << " ";
+        }
+
+        cout << "Distance: ";
+        double dist = 0;
+        for (int j = 0; j < dim; j++) {
+            dist += (output[i * dim + j] - target[j]) * (output[i * dim + j] - target[j]);
+        }
+        cout << fixed;
+        cout.precision(10);
+        cout << sqrt(dist);
+        cout << endl;
+    }
 
     // free device memory
     cudaFree(d_data);
