@@ -1,7 +1,7 @@
 #include "./knn.h"
 
-bool read_data(string input_file, double*& data, int*& labels,
-    double*& target)
+bool read_data(string input_file, float*& data, int*& labels,
+    float*& target)
 {
     FILE* file = freopen(input_file.c_str(), "r", stdin);
     if (file == NULL) {
@@ -11,9 +11,9 @@ bool read_data(string input_file, double*& data, int*& labels,
     cout << "Reading data from " << input_file << endl;
     cin >> k >> n >> dim;
     cout << "k = " << k << ", n = " << n << ", dim = " << dim << endl;
-    data = (double*)malloc(sizeof(double) * n * dim);
+    data = (float*)malloc(sizeof(float) * n * dim);
     labels = (int*)malloc(sizeof(int) * n);
-    target = (double*)malloc(sizeof(double) * dim);
+    target = (float*)malloc(sizeof(float) * dim);
 
     for (int i = 0; i < dim; i++) {
         cin >> target[i];
@@ -29,7 +29,7 @@ bool read_data(string input_file, double*& data, int*& labels,
     return true;
 }
 
-bool write_data(string output_file, double* output, int* labelsOutput)
+bool write_data(string output_file, float* output, int* labelsOutput)
 {
     map<int, int> labelCount;
     FILE* file = freopen(output_file.c_str(), "w", stdout);
@@ -63,7 +63,7 @@ bool write_data(string output_file, double* output, int* labelsOutput)
     return true;
 }
 
-void print_top(double* data, int* labels, int n, double* target)
+void print_top(float* data, int* labels, int n, float* target)
 {
     cout << "Target data: ";
     for (int i = 0; i < dim; i++) {

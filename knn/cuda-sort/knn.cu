@@ -2,19 +2,19 @@
 
 int k = 0, n = 0, dim = 0;
 
-void bubbleSortResult(double* output, double* target)
+void bubbleSortResult(float* output, float* target)
 {
     for (int i = 0; i < k; i++) {
         for (int j = i + 1; j < k; j++) {
-            double dist1 = 0;
-            double dist2 = 0;
+            float dist1 = 0;
+            float dist2 = 0;
             for (int l = 0; l < dim; l++) {
                 dist1 += (output[i * dim + l] - target[l]) * (output[i * dim + l] - target[l]);
                 dist2 += (output[j * dim + l] - target[l]) * (output[j * dim + l] - target[l]);
             }
             if (dist1 > dist2) {
                 for (int l = 0; l < dim; l++) {
-                    double temp = output[i * dim + l];
+                    float temp = output[i * dim + l];
                     output[i * dim + l] = output[j * dim + l];
                     output[j * dim + l] = temp;
                 }
@@ -33,7 +33,7 @@ void bubbleSortResult(double* output, double* target)
         }
 
         cout << "Distance: ";
-        double dist = 0;
+        float dist = 0;
         for (int j = 0; j < dim; j++) {
             dist += (output[i * dim + j] - target[j]) * (output[i * dim + j] - target[j]);
         }
@@ -53,9 +53,9 @@ int main(int argc, char** argv)
     string input_file = argv[1];
     string output_file = argv[2];
 
-    double* data = NULL;
+    float* data = NULL;
     int* labels = NULL;
-    double* target = NULL;
+    float* target = NULL;
 
     // Read data
     read_data(input_file, data, labels, target);
@@ -64,50 +64,55 @@ int main(int argc, char** argv)
     // print_top(data, labels, n, target);
 
     // allocate device memory
-    double *d_data, *d_target;
+    float *d_data, *d_target;
     int* d_labels;
 
-    cudaMalloc(&d_data, sizeof(double) * n * dim);
+    cudaMalloc(&d_data, sizeof(float) * n * dim);
     cudaMalloc(&d_labels, sizeof(int) * n);
-    cudaMalloc(&d_target, sizeof(double) * dim);
+    cudaMalloc(&d_target, sizeof(float) * dim);
 
     // copy data to device
-    cudaMemcpy(d_data, data, sizeof(double) * n * dim, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_data, data, sizeof(float) * n * dim, cudaMemcpyHostToDevice);
     cudaMemcpy(d_labels, labels, sizeof(int) * n, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_target, target, sizeof(double) * dim, cudaMemcpyHostToDevice);
-    long long sortedSize = 2;
+    cudaMemcpy(d_target, target, sizeof(float) * dim, cudaMemcpyHostToDevice);
+    long long sortedSize = 10;
+    long long bNumThreads = 32;
+    long long bNumBlocks = (n + sortedSize - 1) / (sortedSize);
     // call merge sort kernel
-    bubbleSort<<<100, 1>>>(d_data, d_labels, n, dim, d_target, sortedSize);
+    bubbleSort<<<bNumBlocks, bNumThreads>>>(d_data, d_labels, n, dim, d_target, sortedSize);
 
     // sync
     cudaDeviceSynchronize();
 
     // copy data back to host
-    cudaMemcpy(data, d_data, sizeof(double) * n * dim, cudaMemcpyDeviceToHost);
+    cudaMemcpy(data, d_data, sizeof(float) * n * dim, cudaMemcpyDeviceToHost);
 
-    printf("==\n");
     //  print data and distance
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < dim; j++) {
-            printf("%f ", data[i * dim + j]);
-        }
-        // print distance
-        double dist = 0;
-        for (int j = 0; j < dim; j++) {
-            dist += (data[i * dim + j] - target[j]) * (data[i * dim + j] - target[j]);
-        }
-        printf("Distance: %f\n", sqrt(dist));
-    }
-    printf("++++++++++++++++++++++++++++++\n");
-    int elementsPerThread = sortedSize * 2;
-    int numThreads = 256;
-    int numBlocks = 100;
+    // for (int i = 0; i < 5; i++) {
+    //     for (int j = 0; j < dim; j++) {
+    //         printf("%f ", data[i * dim + j]);
+    //     }
+    //     // print distance
+    //     float dist = 0;
+    //     for (int j = 0; j < dim; j++) {
+    //         dist += (data[i * dim + j] - target[j]) * (data[i * dim + j] - target[j]);
+    //     }
+    //     printf("Distance: %f\n", sqrt(dist));
+    // }
+    // printf("++++++++++++++++++++++++++++++\n");
+    long long elementsPerThread = sortedSize * 2;
+    long long numThreads = 128;
+    long long numBlocks = (n + sortedSize * 2 - 1) / (sortedSize * 2);
+    long long elementsPerBlock = numThreads * elementsPerThread;
     while (sortedSize < n) {
-        mergeSort<<<numBlocks, numThreads, 2 * n * dim * sizeof(double) + 2 * sizeof(long long)>>>(d_data, d_labels, d_target, n, dim, elementsPerThread, sortedSize);
-        cudaDeviceSynchronize();
+        mergeSort<<<numBlocks, numThreads, 2 * elementsPerBlock * dim * sizeof(float) + 2 * sizeof(long long)>>>(d_data, d_labels, d_target, n, dim, elementsPerThread, sortedSize);
+        cudaError_t cudaStatus = cudaDeviceSynchronize();
+        if (cudaStatus != cudaSuccess) {
+            printf("Error: %s\n", cudaGetErrorString(cudaStatus));
+        }
         sortedSize *= 2;
         printf("== sortedSize: %lld\n", sortedSize);
-        printArr<<<1, 1>>>(d_data, n, dim, d_target);
+        // printArr<<<1, 1>>>(d_data, 5, dim, d_target);
         // break;
     }
 
@@ -119,11 +124,11 @@ int main(int argc, char** argv)
     }
 
     // allocate memory for output
-    double* output = (double*)malloc(sizeof(double) * k * dim);
+    float* output = (float*)malloc(sizeof(float) * k * dim);
     int* labelsOutput = (int*)malloc(sizeof(int) * k);
 
     // copy output from device to host
-    cudaMemcpy(output, d_data, sizeof(double) * k * dim, cudaMemcpyDeviceToHost);
+    cudaMemcpy(output, d_data, sizeof(float) * k * dim, cudaMemcpyDeviceToHost);
 
     // print top k data
     for (int i = 0; i < k; i++) {
@@ -135,7 +140,7 @@ int main(int argc, char** argv)
         }
 
         cout << "Distance: ";
-        double dist = 0;
+        float dist = 0;
         for (int j = 0; j < dim; j++) {
             dist += (output[i * dim + j] - target[j]) * (output[i * dim + j] - target[j]);
         }

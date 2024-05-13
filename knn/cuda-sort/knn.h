@@ -10,13 +10,13 @@ using namespace std;
 extern int k, n, dim;
 
 // IO functions
-bool read_data(string input_file, double*& data, int*& labels, double*& target);
-bool write_data(string output_file, double* output, int* labelsOutput);
-void print_top(double* data, int* labels, int n, double* target);
+bool read_data(string input_file, float*& data, int*& labels, float*& target);
+bool write_data(string output_file, float* output, int* labelsOutput);
+void print_top(float* data, int* labels, int n, float* target);
 
 // CUDA functions
-__global__ void mergeSort(double* data, int* labels, double* target, long long n, int dim, long long threadSize, long long sortedSize);
-__global__ void bubbleSort(double* data, int* labels, int n, int dim, double* target, int sizeToSort);
-__global__ void printArr(double* data, int n, int dim , double* target);
+__global__ void mergeSort(float* data, int* labels, float* target, long long n, int dim, long long threadSize, long long sortedSize);
+__global__ void bubbleSort(float* data, int* labels, int n, int dim, float* target, int sizeToSort);
+__global__ void printArr(float* data, int n, int dim , float* target);
 
 #endif
