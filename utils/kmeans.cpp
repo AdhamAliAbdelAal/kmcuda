@@ -89,6 +89,7 @@ void assignLabels(float *points, float *centroids, int *labels, int nPoints, int
                 labels[i] = j;
             }
         }
+        // printf("Point %d: label = %d distance = %f\n", i, labels[i], minDistance);
     }
 }
 
@@ -108,9 +109,11 @@ void updateCentroids(float *points, float *centroids, int *labels, int nPoints, 
         }
     }
     for(int i = 0; i < nCentroids; i++){
+        // printf("count[%d] = %d\n", i, count[i]);
         for(int j = 0; j < nDimensions; j++){
             centroids[i*nDimensions+j] /= count[i];
         }
+        // printf("centroid[%d] = %f, %f\n", i, centroids[i*nDimensions], centroids[i*nDimensions+1]);
     }
     free(count);
 }
@@ -119,7 +122,9 @@ float getError(float *oldCentroids, float *centroids, int nDimensions, int nCent
     float error = 0;
     for(int i = 0; i < nCentroids; i++){
         for(int j = 0; j < nDimensions; j++){
-            error += abs(oldCentroids[i*nDimensions+j] - centroids[i*nDimensions+j]);
+            float temp = abs(oldCentroids[i*nDimensions+j] - centroids[i*nDimensions+j]);
+            // printf("error[%d] = %f\n", i*nDimensions+j, temp);
+            error += temp;
         }
     }
     return error;
