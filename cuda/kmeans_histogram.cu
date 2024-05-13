@@ -112,7 +112,14 @@ void readMatrix(FILE* file, float* A, int m, int n){
     }
 }
 
-
+void cudaErrorCheck(string message) {
+    // Check for kernel launch errors
+    cudaError_t cudaStatus = cudaGetLastError();
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "Error: %s in %s\n", cudaGetErrorString(cudaStatus), message.c_str());
+        exit(-1);
+    }
+}
 void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int nDimensions, int nCentroids, int maxIters){
     // Device Data
     float *d_points, *d_centroids, *d_oldCentroids, *error_val;
@@ -120,16 +127,25 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
 
     // Allocate memory on GPU
     cudaMalloc(&d_points, nPoints * nDimensions * sizeof(float));
+    cudaErrorCheck("cudaMalloc d_points");
     cudaMalloc(&d_centroids, nCentroids * nDimensions * sizeof(float));
+    cudaErrorCheck("cudaMalloc d_centroids");
     cudaMalloc(&d_oldCentroids, nCentroids * nDimensions * sizeof(float));
+    cudaErrorCheck("cudaMalloc d_oldCentroids");
     cudaMalloc(&error_val, sizeof(float));
+    cudaErrorCheck("cudaMalloc error_val");
     cudaMalloc(&d_labels, nPoints * sizeof(int));
+    cudaErrorCheck("cudaMalloc d_labels");
     cudaMalloc(&d_counts, nCentroids * sizeof(int));
+    cudaErrorCheck("cudaMalloc d_counts");
 
     // Copy data to GPU
     cudaMemcpy(d_points, points, nPoints * nDimensions * sizeof(float), cudaMemcpyHostToDevice);
+    cudaErrorCheck("cudaMemcpy d_points");
     cudaMemcpy(d_centroids, centroids, nCentroids * nDimensions * sizeof(float), cudaMemcpyHostToDevice);
+    cudaErrorCheck("cudaMemcpy d_centroids");
     cudaMemcpy(d_oldCentroids, centroids, nCentroids * nDimensions * sizeof(float), cudaMemcpyHostToDevice);
+    cudaErrorCheck("cudaMemcpy d_oldCentroids");
 
     // Launch Kernel
     int threadsPerBlock = 256;
@@ -138,25 +154,36 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
     int blocksPerGridCentroids = 1;
     for(int i = 0; i < maxIters; i++){
         cudaMemset(d_counts, 0, nCentroids * sizeof(int));
+        cudaErrorCheck("cudaMemset d_counts");
         printf("Iteration %d\n", i);
         closestCentroid<<<blocksPerGrid, threadsPerBlock>>>(d_points, d_centroids, d_labels, nPoints, nDimensions, nCentroids);
+        cudaErrorCheck("closestCentroid");
         // printf("Closest Centroid Done\n");
         aggregateCentroids<<<blocksPerGrid, threadsPerBlock, nCentroids * nDimensions * sizeof(float)>>>(d_points, d_centroids, d_counts, d_labels, nPoints, nDimensions, nCentroids);
+        cudaErrorCheck("aggregateCentroids");
         // printf("Aggregate Centroids Done\n");
+        printf("blockPerGridCentroids: %d , threadsPerBlockCentroids: %d\n", blocksPerGridCentroids, threadsPerBlockCentroids);
+        printf("shared memory size: %d\n", nCentroids * nDimensions * sizeof(float));
+        printf("pointers %p %p %p %p %p\n", d_centroids, d_oldCentroids, d_counts, d_labels, error_val);
         updateCentroids<<<blocksPerGridCentroids, threadsPerBlockCentroids, nCentroids * nDimensions * sizeof(float)>>>(d_centroids, d_oldCentroids, d_counts, nDimensions, nCentroids, error_val);
+        cudaErrorCheck("updateCentroids");
         // printf("Update Centroids Done\n");
         float error;
         cudaMemcpy(&error, error_val, sizeof(float), cudaMemcpyDeviceToHost);
+        cudaErrorCheck("cudaMemcpy error");
         printf("Error: %f\n", error);
         if(error < MAX_ERR){
             printf("Converged\n");
             break;
         }
         cudaMemcpy(d_oldCentroids, d_centroids, nCentroids * nDimensions * sizeof(float), cudaMemcpyDeviceToDevice);
+        cudaErrorCheck("cudaMemcpy d_oldCentroids");
 
     }
     cudaMemcpy(centroids, d_centroids, nCentroids * nDimensions * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaErrorCheck("cudaMemcpy centroids");
     cudaMemcpy(labels, d_labels, nPoints * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaErrorCheck("cudaMemcpy labels");
     printf("Done\n");
 
     // Free memory
