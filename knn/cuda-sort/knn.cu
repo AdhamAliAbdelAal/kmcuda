@@ -100,14 +100,15 @@ int main(int argc, char** argv)
     }
     printf("++++++++++++++++++++++++++++++\n");
     int elementsPerThread = sortedSize * 2;
-    int blockSize = 256;
+    int numThreads = 256;
     int numBlocks = 100;
     while (sortedSize < n) {
-        mergeSort<<<numBlocks, blockSize, 2 * n * dim * sizeof(double) + 2 * sizeof(long long)>>>(d_data, d_labels, d_target, n, dim, elementsPerThread, sortedSize);
+        mergeSort<<<numBlocks, numThreads, 2 * n * dim * sizeof(double) + 2 * sizeof(long long)>>>(d_data, d_labels, d_target, n, dim, elementsPerThread, sortedSize);
         cudaDeviceSynchronize();
         sortedSize *= 2;
-        // printf("== sortedSize: %lld\n", sortedSize);
-        // printArr<<<1, 1>>>(d_data, n, dim, d_target);
+        printf("== sortedSize: %lld\n", sortedSize);
+        printArr<<<1, 1>>>(d_data, n, dim, d_target);
+        // break;
     }
 
     // check for errors
