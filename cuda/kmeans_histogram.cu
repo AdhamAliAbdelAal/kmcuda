@@ -183,6 +183,12 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
     float *d_points, *d_centroids, *d_oldCentroids, *error_val;
     int *d_labels, *d_counts;
 
+    float time;
+    cudaEvent_t start, stop;
+
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start, 0);
     // Allocate memory on GPU
     cudaMalloc(&d_points, nPoints * nDimensions * sizeof(float));
     // cudaErrorCheck("cudaMalloc d_points"
@@ -252,6 +258,11 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
     cudaFree(d_labels);
     cudaFree(d_counts);
     cudaFree(error_val);
+    
+    cudaEventRecord(stop, 0) ;
+    cudaEventSynchronize(stop) ;
+    cudaEventElapsedTime(&time, start, stop);
+    printf("Time to generate:  %3.1f s \n", time/1000);
 }
 
 FILE* openFile(char* filename, string mode){
