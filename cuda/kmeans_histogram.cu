@@ -98,6 +98,8 @@ __global__ void labelingKernel(float *points, float *centroids, float* currentCe
         // printf("centroids_shared[%d]: %f\n", i, centroids_shared[i]);
         atomicAdd(centroids + i, centroids_shared[i]);
     }
+    // free the point
+    delete [] point;
 }
 
 __global__ void updateKernel(float *centroids, int *counts, float* oldCentroids, float *error, int nDimensions, int nCentroids){
@@ -140,6 +142,7 @@ __global__ void updateKernel(float *centroids, int *counts, float* oldCentroids,
         atomicAdd(error, error_shared[0]);
         // printf("*********************: %f\n", error_shared[0]);
     }
+    
 }
 
 
@@ -165,6 +168,8 @@ void cudaErrorCheck(cudaError_t error, string message) {
     // Check for kernel launch errors
     if (error != cudaSuccess) {
         fprintf(stderr, "Error: %s in %s\n", cudaGetErrorString(error), message.c_str());
+        // print status code
+        fprintf(stderr, "Status code: %d\n", error);
         exit(-1);
     }
 }
