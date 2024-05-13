@@ -12,8 +12,8 @@ using namespace std;
 
 #define MAX_ERR 1e-6
 #define MAX_CLUSTERS 1000
-#define LABELING_BLOCK_SIZE 1024
-#define UPDATE_BLOCK_SIZE 1024
+#define LABELING_BLOCK_SIZE 256
+#define UPDATE_BLOCK_SIZE 256
 
 __device__ float distance(float *point, float *centroid, int nDimensions){
     float sum = 0;
@@ -27,6 +27,7 @@ __global__ void labelingKernel(float *points, float *centroids, float* currentCe
     __shared__ int counts_privatization[MAX_CLUSTERS];
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int tid = threadIdx.x;
+    // printf("blockdim: %d\n", blockDim.x);
     // printf("index: %d\n", index);
     // initialize centroids shared memory
     // int loadsPerThread = ceil((float)nCentroids*nDimensions/blockDim.x);
@@ -51,6 +52,9 @@ __global__ void labelingKernel(float *points, float *centroids, float* currentCe
         // use register variable instead of global memory location
         for(int i = 1; i < nCentroids; i++){
             float d = distance(point, centroids_shared + i * nDimensions, nDimensions);
+            if(index==1){
+                // printf("Distance with centroid %d: %f\n", i, d);
+            }
             if(d < minDistance){
                 minDistance = d;
                 label = i;
@@ -60,11 +64,12 @@ __global__ void labelingKernel(float *points, float *centroids, float* currentCe
         labels[index] = label;
         // printf("Point %d: Label %d Distance %f\n", index, label, minDistance);
     }
-
+    // to ensure that all threads calculate the distance before use centroids_shared as the shared memory for privatization
+    __syncthreads();
 
     // initialize privatization arrays in each block
-    if(tid<nCentroids){
-        counts_privatization[tid] = 0;
+    for (int i = tid; i < nCentroids; i+=blockDim.x){
+        counts_privatization[i] = 0;
     }
     // write reset the centroids in the shared memory
     for(int i = tid; i < nCentroids * nDimensions; i+=blockDim.x){
@@ -73,21 +78,24 @@ __global__ void labelingKernel(float *points, float *centroids, float* currentCe
     // sync threads in the block is required to make sure the privatization arrays are initialized
     __syncthreads();
 
-
     // add the point to the centroid in the privatization array
     if(index < nPoints){
         // add 1 to the count of the label in the privatization array
         atomicAdd(counts_privatization + label, 1);
+        // printf("point %d add to label %d\n", index, label);
         for(int i = 0; i < nDimensions; i++){
             atomicAdd(centroids_shared + label * nDimensions + i, point[i]);
         }
     }
 
+    // sync threads to ensure that all threads have added the point to the privatization arrays
+    __syncthreads();
     // write the privatization arrays back to global memory
-    if(tid < nCentroids){
-        atomicAdd(counts + tid, counts_privatization[tid]);
+    for(int i = tid; i < nCentroids; i+=blockDim.x){
+        atomicAdd(counts + i, counts_privatization[i]);
     }
     for(int i = tid; i < nCentroids * nDimensions; i+=blockDim.x){
+        // printf("centroids_shared[%d]: %f\n", i, centroids_shared[i]);
         atomicAdd(centroids + i, centroids_shared[i]);
     }
 }
@@ -105,7 +113,9 @@ __global__ void updateKernel(float *centroids, int *counts, float* oldCentroids,
         // each thread update one float in the centroids array
         // mean calculations
         float temp = centroids[index];
+        // printf("temp before [%d]: %f\n",index, temp);
         int clusterCount = index / nDimensions;
+        // printf("count[%d]: %d, index %d\n", clusterCount,counts[clusterCount],index);
         temp /= counts[clusterCount];
         // printf("centroids[%d]: %f\n", index, temp);
         centroids[index] = temp;
@@ -121,7 +131,7 @@ __global__ void updateKernel(float *centroids, int *counts, float* oldCentroids,
             error_shared[tid] += error_shared[tid + stride];
         }
     }
-
+    __syncthreads();
     if(tid == 0){
         // add the error of the current block global error
         // printf("error: %f\n", *error);
@@ -186,8 +196,12 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
     // cudaErrorCheck("cudaMemcpy d_oldCentroids");
 
     // Launch Kernel
-    int threadsPerBlock = LABELING_BLOCK_SIZE;
-    int blocksPerGrid = (nPoints + threadsPerBlock - 1) / threadsPerBlock;
+    int labelingThreadsPerBlock = LABELING_BLOCK_SIZE;
+    int labelingBlocksPerGrid = (nPoints + labelingThreadsPerBlock - 1) / labelingThreadsPerBlock;
+
+    int updateThreadsPerBlock = UPDATE_BLOCK_SIZE;
+    int updateBlocksPerGrid = (nCentroids * nDimensions + updateThreadsPerBlock - 1) / updateThreadsPerBlock;
+
     for(int i = 0; i < maxIters; i++){
         // initialize counts to 0
         cudaMemset(d_counts, 0, nCentroids * sizeof(int));
@@ -197,12 +211,12 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
 
 
         printf("Iteration %d\n", i);
-        labelingKernel<<<blocksPerGrid, threadsPerBlock, nCentroids* nDimensions>>>(d_points, d_centroids, d_oldCentroids, d_labels, d_counts, nPoints, nDimensions, nCentroids);
+        labelingKernel<<<labelingBlocksPerGrid, labelingThreadsPerBlock, nCentroids* nDimensions * sizeof(float)>>>(d_points, d_centroids, d_oldCentroids, d_labels, d_counts, nPoints, nDimensions, nCentroids);
 
         cudaErrorCheck(cudaDeviceSynchronize(),"labelingKernel");
 
         // Update Centroids
-        updateKernel<<<blocksPerGrid, threadsPerBlock>>>(d_centroids, d_counts, d_oldCentroids, error_val, nDimensions, nCentroids);
+        updateKernel<<<updateBlocksPerGrid, updateThreadsPerBlock>>>(d_centroids, d_counts, d_oldCentroids, error_val, nDimensions, nCentroids);
         cudaDeviceSynchronize();
         cudaErrorCheck(cudaDeviceSynchronize(),"updateCentroids");
         printf("updated\n");

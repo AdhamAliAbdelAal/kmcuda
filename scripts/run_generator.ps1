@@ -1,4 +1,4 @@
-$numberOfPoints = 2048
+$numberOfPoints = 4096
 $numberOfFeatures = 128
 $numberOfClusters = 16
 $maximumNumberOfIterations = 10

@@ -110,8 +110,12 @@ void updateCentroids(float *points, float *centroids, int *labels, int nPoints, 
     }
     for(int i = 0; i < nCentroids; i++){
         // printf("count[%d] = %d\n", i, count[i]);
+        if(count[i] == 0){
+            printf("Warning: empty cluster\n");
+        }
         for(int j = 0; j < nDimensions; j++){
             centroids[i*nDimensions+j] /= count[i];
+            // printf("centroid[%d] = %f\n", i*nDimensions+j, centroids[i*nDimensions+j]);
         }
         // printf("centroid[%d] = %f, %f\n", i, centroids[i*nDimensions], centroids[i*nDimensions+1]);
     }
