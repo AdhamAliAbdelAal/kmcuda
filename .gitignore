@@ -1,2 +1,4 @@
 ## VS code ##
 .vscode
+*.txt
+*.exe

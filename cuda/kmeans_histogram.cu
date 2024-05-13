@@ -27,6 +27,7 @@ __global__ void labelingKernel(float *points, float *centroids, float* currentCe
     __shared__ int counts_privatization[MAX_CLUSTERS];
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int tid = threadIdx.x;
+    // printf("threadIdx: %d\n", threadIdx.x);
     // printf("blockdim: %d\n", blockDim.x);
     // printf("index: %d\n", index);
     // initialize centroids shared memory
@@ -39,12 +40,13 @@ __global__ void labelingKernel(float *points, float *centroids, float* currentCe
     __syncthreads();
 
     // copy point in register variable to avoid multiple access to global memory
-    float * point = new float[nDimensions]; 
+    // float * point = new float[nDimensions]; 
     // float* point = (float*)malloc(nDimensions * sizeof(float));
-    for(int i = 0; i < nDimensions; i++){
-        point[i] = points[index * nDimensions + i];
-    }  
+    // for(int i = 0; i < nDimensions; i++){
+    //     point[i] = points[index * nDimensions + i];
+    // }  
 
+    float * point = points + index * nDimensions;
     // start labeling
     int label = 0;
     if(index < nPoints){
@@ -99,7 +101,7 @@ __global__ void labelingKernel(float *points, float *centroids, float* currentCe
         atomicAdd(centroids + i, centroids_shared[i]);
     }
     // free the point
-    delete [] point;
+    // delete [] point;
 }
 
 __global__ void updateKernel(float *centroids, int *counts, float* oldCentroids, float *error, int nDimensions, int nCentroids){
@@ -117,8 +119,11 @@ __global__ void updateKernel(float *centroids, int *counts, float* oldCentroids,
         float temp = centroids[index];
         // printf("temp before [%d]: %f\n",index, temp);
         int clusterCount = index / nDimensions;
+        int cnt = counts[clusterCount];
+        // temp = temp?temp:0;
+        // cnt = cnt?cnt:1;
         // printf("count[%d]: %d, index %d\n", clusterCount,counts[clusterCount],index);
-        temp /= counts[clusterCount];
+        temp /= cnt;
         // printf("centroids[%d]: %f\n", index, temp);
         centroids[index] = temp;
         error_shared[tid] = abs(temp - oldCentroids[index]);

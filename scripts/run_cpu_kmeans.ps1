@@ -1,11 +1,11 @@
 $file = "../utils/kmeans.cpp"
 $input_file = "../testcases/testcase01.txt"
 $output_file = "../testcases/cpu_result01.txt"
-g++ $file -o main
+g++ $file -o cpu_main
 
 # the residual arguments are passed to the main program
 if ($?) {
-    .\main $input_file $output_file
+    .\cpu_main $input_file $output_file
     # delete the executable
-    Remove-Item .\main.exe
+    Remove-Item .\cpu_main.exe
 }

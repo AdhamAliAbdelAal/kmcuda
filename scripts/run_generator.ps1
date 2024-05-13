@@ -1,6 +1,6 @@
-$numberOfPoints = 4096
-$numberOfFeatures = 128
-$numberOfClusters = 16
+$numberOfPoints = 100000
+$numberOfFeatures = 256
+$numberOfClusters = 32
 $maximumNumberOfIterations = 1000
 $testCaseFile = "../testcases/testcase01.txt"
 $testResultFile = "../testcases/expected01.txt"
