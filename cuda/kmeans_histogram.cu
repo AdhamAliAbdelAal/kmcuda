@@ -277,7 +277,7 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
         float error;
         cudaMemcpy(&error, error_val, sizeof(float), cudaMemcpyDeviceToHost);
         cudaErrorCheck(cudaDeviceSynchronize(),"cudaMemcpy error");
-        printf("Error: %f\n", error);
+        // printf("Error: %f\n", error);
         if(error < MAX_ERR){
             printf("Converged\n");
             break;
