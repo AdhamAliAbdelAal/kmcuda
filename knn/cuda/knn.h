@@ -5,7 +5,7 @@
 #include <map>
 using namespace std;
 
-extern int k, n, dim;
+extern long long k, n, dim;
 
 // IO functions
 bool read_data(string input_file, double *&data, int *&labels, double *&target);
@@ -15,5 +15,5 @@ void print_top(double *data, int *labels, int n, double *target);
 // CUDA functions
 __global__ void knn(double *data, int *labels, double *d_distances, int threadSize, long long n, int dim, int k,
                     double *target, double *output, int *labelsOutput, double *d_distances2);
-__global__ void calcDistances(double *data, double *target, double *distances, int n, int dim);
+__global__ void calcDistances(double *data, double *target, double *distances, long long n, int dim);
 #endif

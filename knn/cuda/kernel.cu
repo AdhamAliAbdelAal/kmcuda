@@ -1,6 +1,6 @@
 #include <iostream>
 
-__global__ void calcDistances(double *data, double *target, double *distances, int n, int dim)
+__global__ void calcDistances(double *data, double *target, double *distances, long long n, int dim)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < n)
