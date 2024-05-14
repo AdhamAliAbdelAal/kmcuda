@@ -50,18 +50,19 @@ __global__ void labelingKernel(float *points, float *centroids, float* currentCe
     // start labeling
     int label = 0;
     if(index < nPoints){
-        float minDistance = distance(point, centroids_shared, nDimensions);
+        label = index%nCentroids;
+        float minDistance = distance(point, centroids_shared + label* nDimensions, nDimensions);
         // use register variable instead of global memory location
-        for(int i = 1; i < nCentroids; i++){
-            float d = distance(point, centroids_shared + i * nDimensions, nDimensions);
-            if(index==1){
-                // printf("Distance with centroid %d: %f\n", i, d);
-            }
-            if(d < minDistance){
-                minDistance = d;
-                label = i;
-            }
-        }
+        // for(int i = 1; i < nCentroids; i++){
+        //     float d = distance(point, centroids_shared + i * nDimensions, nDimensions);
+        //     if(index==1){
+        //         // printf("Distance with centroid %d: %f\n", i, d);
+        //     }
+        //     if(d < minDistance){
+        //         minDistance = d;
+        //         label = i;
+        //     }
+        // }
         // write the value back to global memory
         labels[index] = label;
         // printf("Point %d: Label %d Distance %f\n", index, label, minDistance);
