@@ -12,7 +12,7 @@ using namespace std;
 
 #define MAX_ERR 1e-6
 #define MAX_CLUSTERS 1000
-#define LABELING_BLOCK_SIZE 256
+#define LABELING_BLOCK_SIZE 1024
 #define UPDATE_BLOCK_SIZE 256
 
 __device__ float distance(float *point, float *centroid, int nDimensions){
