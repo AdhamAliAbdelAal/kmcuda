@@ -1,58 +1,90 @@
+#include <iostream>
 
-__device__ double euclidean_distance(double* data, int idx, double* target,
-    int dim)
+__global__ void calcDistances(double *data, double *target, double *distances, int n, int dim)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n)
+    {
+        for (int i = idx; i < n; i += blockDim.x * gridDim.x)
+        {
+            double sum = 0;
+            for (int j = 0; j < dim; j++)
+            {
+                sum += (data[i * dim + j] - target[j]) * (data[i * dim + j] - target[j]);
+            }
+            distances[i] = sqrt(sum);
+        }
+    }
+}
+
+__device__ double euclidean_distance(double *data, int idx, double *target, int dim)
 {
     double sum = 0;
-    for (int i = 0; i < dim; i++) {
+    for (int i = 0; i < dim; i++)
+    {
         sum += (data[idx * dim + i] - target[i]) * (data[idx * dim + i] - target[i]);
     }
     return sqrt(sum);
 }
 
-__device__ void sortElements(double* data, int startElement, int endElement,
-    double* target, int k, int* nearesrtNeighborsIdxs,
-    int dim)
+__device__ void sortElements(double *data, double *distances, double *distancesOut, long long startElement,
+                             long long endElement, long long startElementCopy, long long endElementCopy, double *target,
+                             int k, int *nearesrtNeighborsIdxs, int dim)
 {
-    double* distances = (double*)malloc(sizeof(double) * k);
-    for (int i = startElement; i <= endElement; i++) {
-        double dist = euclidean_distance(data, i, target, dim);
-        if (i - startElement < k) {
-            distances[i - startElement] = dist;
-            nearesrtNeighborsIdxs[i - startElement] = i;
-        } else {
-            int maxIdx = 0;
-            for (int j = 1; j < k; j++) {
-                if (distances[j] > distances[maxIdx]) {
-                    maxIdx = j;
-                }
+    // Initialize nearestNeighborsIdxs and distancesOut with initial k values
+    for (int i = 0; i < k; i++)
+    {
+        nearesrtNeighborsIdxs[i] = startElement + i;
+        distancesOut[i + startElementCopy] = distances[startElement + i];
+    }
+
+    // Sort distances and update nearestNeighborsIdxs
+    for (long long i = startElement + k; i <= endElement; i++)
+    {
+        // Find the index of the maximum distance in distancesOut
+        long long maxIdx = 0;
+        double maxVal = distancesOut[startElementCopy];
+        for (long long j = 1; j < k; j++)
+        {
+            if (distancesOut[j + startElementCopy] > maxVal)
+            {
+                maxIdx = j;
+                maxVal = distancesOut[j + startElementCopy];
             }
-            if (dist < distances[maxIdx]) {
-                distances[maxIdx] = dist;
-                nearesrtNeighborsIdxs[maxIdx] = i;
-            }
+        }
+
+        // Update distancesOut and nearestNeighborsIdxs if the current distance is smaller
+        if (distances[i] < maxVal)
+        {
+            distancesOut[maxIdx + startElementCopy] = distances[i];
+            nearesrtNeighborsIdxs[maxIdx] = i;
         }
     }
 }
 
-__global__ void knn(double* data, int* labels, int threadSize, int n, int dim,
-    int k, double* target, double* output, int* labelsOutput)
+__global__ void knn(double *data, int *labels, double *distances, int threadSize, long long n, int dim, int k,
+                    double *target, double *output, int *labelsOutput, double *distancesOut)
 {
     // print thread info
-    int startElement = (blockIdx.x * blockDim.x + threadIdx.x) * threadSize;
-    int endElement = startElement + threadSize < n ? startElement + threadSize - 1 : n - 1;
-    int totalElements = endElement - startElement + 1;
+    long long startElement = (blockIdx.x * blockDim.x + threadIdx.x) * threadSize;
+    long long endElement = startElement + threadSize < n ? startElement + threadSize - 1 : n - 1;
+    long long totalElements = endElement - startElement + 1;
     k = k < totalElements ? k : totalElements;
 
-    if (startElement < n) {
-        int* nearesrtNeighborsIdxs = (int*)malloc(sizeof(int) * k);
-        sortElements(data, startElement, endElement, target, k,
-            nearesrtNeighborsIdxs, dim);
-
+    if (startElement < n)
+    {
         // copy elements to data again
-        int startElementCopy = (blockIdx.x * blockDim.x + threadIdx.x) * k;
-        int endElementCopy = startElementCopy + k - 1;
-        for (int i = startElementCopy; i <= endElementCopy; i++) {
-            for (int j = 0; j < dim; j++) {
+        long long startElementCopy = (blockIdx.x * blockDim.x + threadIdx.x) * k;
+        long long endElementCopy = startElementCopy + k - 1;
+
+        int *nearesrtNeighborsIdxs = (int *)malloc(sizeof(int) * k);
+        sortElements(data, distances, distancesOut, startElement, endElement, startElementCopy, endElementCopy, target,
+                     k, nearesrtNeighborsIdxs, dim);
+
+        for (long long i = startElementCopy; i <= endElementCopy; i++)
+        {
+            for (int j = 0; j < dim; j++)
+            {
                 output[i * dim + j] = data[nearesrtNeighborsIdxs[i - startElementCopy] * dim + j];
             }
             labelsOutput[i] = labels[nearesrtNeighborsIdxs[i - startElementCopy]];
