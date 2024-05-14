@@ -277,7 +277,7 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
         float error;
         cudaMemcpy(&error, error_val, sizeof(float), cudaMemcpyDeviceToHost);
         cudaErrorCheck(cudaDeviceSynchronize(),"cudaMemcpy error");
-        // printf("Error: %f\n", error);
+        printf("Error: %f\n", error);
         if(error < MAX_ERR){
             printf("Converged\n");
             break;
@@ -316,8 +316,13 @@ void readData(FILE* file, int& nPoints, int& nDimensions, int& nCentroids, int& 
     fscanf(file, "%d %d %d %d", &nPoints, &nDimensions, &nCentroids, &maxIters);
     centroids = allocateMatrix(nCentroids, nDimensions);
     points = allocateMatrix(nPoints, nDimensions);
-    readMatrix(file, centroids, nCentroids, nDimensions);
     readMatrix(file, points, nPoints, nDimensions);
+    int step = nPoints / nCentroids;
+    for(int i = 0; i < nCentroids; i++){
+        for(int j = 0; j < nDimensions; j++){
+            centroids[i*nDimensions+j] = points[i*step+j];
+        }
+    }
 }
 
 void printData(int nPoints, int nDimensions, int nCentroids, int maxIters, float* points, float* centroids){
