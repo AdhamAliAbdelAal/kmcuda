@@ -75,7 +75,7 @@ int main(int argc, char** argv)
     cudaMemcpy(d_data, data, sizeof(float) * n * dim, cudaMemcpyHostToDevice);
     cudaMemcpy(d_labels, labels, sizeof(int) * n, cudaMemcpyHostToDevice);
     cudaMemcpy(d_target, target, sizeof(float) * dim, cudaMemcpyHostToDevice);
-    long long sortedSize = 10;
+    long long sortedSize = 30;
     long long bNumThreads = 32;
     long long bNumBlocks = (n + sortedSize - 1) / (sortedSize);
     // call merge sort kernel
@@ -100,8 +100,8 @@ int main(int argc, char** argv)
     //     printf("Distance: %f\n", sqrt(dist));
     // }
     // printf("++++++++++++++++++++++++++++++\n");
-    long long elementsPerThread = sortedSize * 2;
-    long long numThreads = 128;
+    long long elementsPerThread = 50;
+    long long numThreads = 32;
     long long numBlocks = (n + sortedSize * 2 - 1) / (sortedSize * 2);
     long long elementsPerBlock = numThreads * elementsPerThread;
     while (sortedSize < n) {

@@ -1,23 +1,29 @@
 #include "./knn.h"
 
-__global__ void bubbleSort(float* data, int* labels, int n, int dim, float* target, int sizeToSort)
+__global__ void bubbleSort(float *data, int *labels, int n, int dim, float *target, int sizeToSort)
 {
 
     int start = (blockIdx.x * blockDim.x + threadIdx.x) * sizeToSort;
     int end = start + sizeToSort < n ? start + sizeToSort : n;
-    if (start >= n) {
+    if (start >= n)
+    {
         return;
     }
-    for (int i = start; i < end; i++) {
-        for (int j = i + 1; j < end; j++) {
+    for (int i = start; i < end; i++)
+    {
+        for (int j = i + 1; j < end; j++)
+        {
             float dist1 = 0;
             float dist2 = 0;
-            for (int l = 0; l < dim; l++) {
+            for (int l = 0; l < dim; l++)
+            {
                 dist1 += (data[i * dim + l] - target[l]) * (data[i * dim + l] - target[l]);
                 dist2 += (data[j * dim + l] - target[l]) * (data[j * dim + l] - target[l]);
             }
-            if (dist1 > dist2) {
-                for (int l = 0; l < dim; l++) {
+            if (dist1 > dist2)
+            {
+                for (int l = 0; l < dim; l++)
+                {
                     float temp = data[i * dim + l];
                     data[i * dim + l] = data[j * dim + l];
                     data[j * dim + l] = temp;
@@ -30,70 +36,74 @@ __global__ void bubbleSort(float* data, int* labels, int n, int dim, float* targ
     }
 }
 
-__device__ float euclidean_distance(float* data, int idx, float* target,
-    int dim)
+__device__ float euclidean_distance(float *data, int idx, float *target, int dim)
 {
     float sum = 0;
-    for (int i = 0; i < dim; i++) {
+    for (int i = 0; i < dim; i++)
+    {
         sum += (data[idx * dim + i] - target[i]) * (data[idx * dim + i] - target[i]);
     }
     return sqrt(sum);
 }
 
-__device__ unsigned int coRank(float* data, int dim, float* target, long long n, long long m, long long jOffset, long long iOffset, long long k)
+__device__ unsigned int coRank(float *data, int dim, float *target, long long n, long long m, long long jOffset,
+                               long long iOffset, long long k)
 {
 
     long long iLow = max(k - m, iOffset - 1);
     long long iHigh = min(n + iOffset, k + 1);
-    // if (threadIdx.x == 1) {
-    //     printf("iLow: %lld, iHigh: %lld\n", iLow, iHigh);
-    //     }
-    // int tttt = 0;
-    while (true) {
+    int tttt = 0;
+    while (true)
+    {
         long long i = (iHigh - iLow) / 2 + iLow;
         long long j = k - i + jOffset;
-        // if (threadIdx.x == 1 && tttt == 0) {
-        //     printf("pppppppppppppppp i: %lld, j: %lld, iLow: %lld, iHigh: %lld iOffset: %lld, jOffset: %lld\n", i, j, iLow, iHigh, iOffset, jOffset);
-        //     printf("euclidean_distance(data, i - 1, target, dim): %f\n", euclidean_distance(data, i - 1, target, dim));
-        //     printf("euclidean_distance(data, j, target, dim): %f\n", euclidean_distance(data, j, target, dim));
-        //     printf("euclidean_distance(data, j - 1, target, dim): %f\n", euclidean_distance(data, j - 1, target, dim));
-        //     printf("euclidean_distance(data, i, target, dim): %f\n", euclidean_distance(data, i, target, dim));
-        // }
-        // tttt++;
-        // if (tttt == 10000) {
-        //     printf("stuck\n");
-        //     printf("stuck blockIdx.x %d threadIdx.x = %d i: %lld, j: %lld, iLow: %lld, iHigh: %lld\n", blockIdx.x, threadIdx.x, i, j, iLow, iHigh);
-        //     // return i;
-        // }
-        if (threadIdx.x == 0) {
-            // printf("i: %lld, j: %lld, iLow: %lld, iHigh: %lld\n", i, j, iLow, iHigh);
+        tttt++;
+        if (tttt == 10000)
+        {
+            printf("stuck\n");
+            printf("stuck blockIdx.x %d threadIdx.x = %d i: %lld, j: %lld, iLow: %lld, iHigh: %lld\n", blockIdx.x,
+                   threadIdx.x, i, j, iLow, iHigh);
+            // return i;
         }
-        if (i > iOffset && j < m + jOffset && euclidean_distance(data, i - 1, target, dim) > euclidean_distance(data, j, target, dim)) {
+        if (i > iOffset && j < m + jOffset &&
+            euclidean_distance(data, i - 1, target, dim) > euclidean_distance(data, j, target, dim))
+        {
             iHigh = i;
-        } else if (j > jOffset && i < n + iOffset && euclidean_distance(data, j - 1, target, dim) > euclidean_distance(data, i, target, dim)) {
+        }
+        else if (j > jOffset && i < n + iOffset &&
+                 euclidean_distance(data, j - 1, target, dim) > euclidean_distance(data, i, target, dim))
+        {
             iLow = i;
-
-        } else {
+        }
+        else
+        {
             return i;
         }
     }
 }
 
-__device__ void sequintialMergeSegment(float* sharedDataA, float* sharedDataB, float* output, float* target, int n, int m, int dim)
+__device__ void sequintialMergeSegment(float *sharedDataA, float *sharedDataB, float *output, float *target, int n,
+                                       int m, int dim)
 {
     int i = 0;
     int j = 0;
     int k = 0;
-    while (i < n && j < m) {
+    while (i < n && j < m)
+    {
         float dist1 = euclidean_distance(sharedDataA, i, target, dim);
         float dist2 = euclidean_distance(sharedDataB, j, target, dim);
-        if (dist1 < dist2) {
-            for (int l = 0; l < dim; l++) {
+        if (dist1 < dist2)
+        {
+            for (int l = 0; l < dim; l++)
+            {
                 output[k * dim + l] = sharedDataA[i * dim + l];
             }
             i++;
-        } else {
-            for (int l = 0; l < dim; l++) {
+        }
+        else
+        {
+            for (int l = 0; l < dim; l++)
+            {
                 output[k * dim + l] = sharedDataB[j * dim + l];
             }
             j++;
@@ -101,16 +111,20 @@ __device__ void sequintialMergeSegment(float* sharedDataA, float* sharedDataB, f
         k++;
     }
 
-    while (i < n) {
-        for (int l = 0; l < dim; l++) {
+    while (i < n)
+    {
+        for (int l = 0; l < dim; l++)
+        {
             output[k * dim + l] = sharedDataA[i * dim + l];
         }
         i++;
         k++;
     }
 
-    while (j < m) {
-        for (int l = 0; l < dim; l++) {
+    while (j < m)
+    {
+        for (int l = 0; l < dim; l++)
+        {
             output[k * dim + l] = sharedDataB[j * dim + l];
         }
         j++;
@@ -118,59 +132,69 @@ __device__ void sequintialMergeSegment(float* sharedDataA, float* sharedDataB, f
     }
 }
 
-__global__ void printArr(float* data, int n, int dim, float* target)
+__global__ void printArr(float *data, int n, int dim, float *target)
 {
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < dim; j++) {
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < dim; j++)
+        {
             printf("%f ", data[i * dim + j]);
         }
 
         // print distance
         float dist = 0;
-        for (int j = 0; j < dim; j++) {
+        for (int j = 0; j < dim; j++)
+        {
             dist += (data[i * dim + j] - target[j]) * (data[i * dim + j] - target[j]);
         }
         printf("Distance: %f\n", sqrt(dist));
     }
 }
 
-__global__ void mergeSort(float* data, int* labels, float* target, long long n, int dim, long long threadSize, long long sortedSize)
+__global__ void mergeSort(float *data, int *labels, float *target, long long n, int dim, long long threadSize,
+                          long long sortedSize)
 {
     threadSize = threadSize > sortedSize * 2 ? sortedSize * 2 : threadSize;
 
     long long maxElementsPerBlock = blockDim.x * threadSize > sortedSize * 2 ? sortedSize * 2 : blockDim.x * threadSize;
     long long elementsPerBlock = maxElementsPerBlock < n ? maxElementsPerBlock : n;
-    // long long elementsPerBlock = sortedSize * 2 > n ? n : sortedSize * 2;
-
-    // elementsPerBlock = elementsPerBlock < n ? elementsPerBlock : n;
-    long long kBlock = elementsPerBlock * blockIdx.x;
-    long long kNextBlock = (kBlock + elementsPerBlock < n) ? (kBlock + elementsPerBlock) : n;
 
     // load data to shared memory
     __shared__ long long iBlock;
     __shared__ long long iNextBlock;
     __shared__ long long jBlock;
     __shared__ long long jNextBlock;
-    __shared__ long long blockStart;
-    __shared__ long long numSegment;
+    __shared__ long long kBlock;
+    __shared__ long long kNextBlock;
     __shared__ long long jOffset;
     __shared__ long long iOffset;
-    long long totalNumberOfSegments = (n + sortedSize - 1) / (sortedSize);
 
-    if (threadIdx.x == 0) {
-        blockStart = blockIdx.x * maxElementsPerBlock;
-        numSegment = ((blockStart) / (sortedSize * 2)) * 2;
-        jOffset = (numSegment + 1) * sortedSize;
-        iOffset = (numSegment)*sortedSize;
+    if (threadIdx.x == 0)
+    {
+        long long numBlocksPerSortedSize = (2 * sortedSize + maxElementsPerBlock - 1) / maxElementsPerBlock;
+        long long whichSortedSize = blockIdx.x / numBlocksPerSortedSize;
+        long long startSortedSize = whichSortedSize * sortedSize * 2;
+        long long blockOrderInSortedSize = blockIdx.x % numBlocksPerSortedSize;
 
-        if (numSegment < totalNumberOfSegments && blockStart < n) {
-
+        kBlock = startSortedSize + blockOrderInSortedSize * maxElementsPerBlock;
+        kNextBlock = min(kBlock + maxElementsPerBlock, min(n, startSortedSize + 2 * sortedSize));
+        iOffset = whichSortedSize * sortedSize * 2;
+        jOffset = iOffset + sortedSize;
+        if (kBlock < n)
+        {
+            printf(
+                "blockIdx.x: %d, whichSortedSize: %lld, startSortedSize: %lld, blockOrderInSortedSize: %lld, kBlock: "
+                "%lld, kNextBlock: %lld kBlock-kNextBlock: %lld\n",
+                blockIdx.x, whichSortedSize, startSortedSize, blockOrderInSortedSize, kBlock, kNextBlock,
+                kNextBlock - kBlock);
             long long jSize = n - jOffset < sortedSize ? n - jOffset : sortedSize;
-            if (jSize < 0) {
+            long long iSize = n - iOffset < sortedSize ? n - iOffset : sortedSize;
+            if (jSize < 0)
+            {
                 jSize = 0;
             }
-            iBlock = coRank(data, dim, target, sortedSize, jSize, jOffset, iOffset, kBlock);
-            iNextBlock = coRank(data, dim, target, sortedSize, jSize, jOffset, iOffset, kNextBlock);
+            iBlock = coRank(data, dim, target, iSize, jSize, jOffset, iOffset, kBlock);
+            iNextBlock = coRank(data, dim, target, iSize, jSize, jOffset, iOffset, kNextBlock);
 
             jBlock = kBlock - iBlock + jOffset;
             jNextBlock = kNextBlock - iNextBlock + jOffset;
@@ -178,64 +202,49 @@ __global__ void mergeSort(float* data, int* labels, float* target, long long n, 
     }
 
     __syncthreads();
-    // if (threadIdx.x == 0 && blockIdx.x == 0) {
-    //     printf("here 30");
-    // }
+    return;
     long long nBlock, mBlock;
     extern __shared__ float sharedArr[];
-    if (numSegment < totalNumberOfSegments) {
+    if (kBlock < n)
+    {
         // load data to shared memory
         nBlock = iNextBlock - iBlock;
-        for (long long i = threadIdx.x; i < nBlock; i += blockDim.x) {
+        for (long long i = threadIdx.x; i < nBlock; i += blockDim.x)
+        {
 
-            for (int j = 0; j < dim; j++) {
+            for (int j = 0; j < dim; j++)
+            {
                 sharedArr[i * dim + j] = data[(i + iBlock) * dim + j];
             }
         }
         mBlock = jNextBlock - jBlock;
-        for (long long i = threadIdx.x; i < mBlock; i += blockDim.x) {
-            for (int j = 0; j < dim; j++) {
+        if (threadIdx.x == 0)
+        {
+            printf("nBlock: %lld, mBlock: %lld maxElementsPerBlock: %lld\n", nBlock, mBlock, maxElementsPerBlock);
+        }
+        for (long long i = threadIdx.x; i < mBlock; i += blockDim.x)
+        {
+            for (int j = 0; j < dim; j++)
+            {
                 sharedArr[(i + nBlock) * dim + j] = data[(i + jBlock) * dim + j];
             }
         }
     }
 
     __syncthreads();
-    // if (threadIdx.x == 0 && blockIdx.x == 0) {
-    //     printf("here 20");
-    // }
+
     long long actualSize = nBlock + mBlock;
     // shared memory for output
-    float* output = sharedArr + (actualSize)*dim;
+    float *output = sharedArr + (actualSize)*dim;
 
     long long k = threadIdx.x * threadSize;
-    if (numSegment < totalNumberOfSegments && k < actualSize) {
-
-        // printf("totalNumberOfSegments = %lld\n", totalNumberOfSegments);
-        // printf("blockIdx.x = %d threadIdx.x = %d actualSize: %lld\n", blockIdx.x, threadIdx.x, actualSize);
-        // printf("blockIdx.x = %d threadIdx.x = %d k: %lld\n", blockIdx.x, threadIdx.x, k);
-        // printf("threadIdx.x = %d kBlock: %lld\n", threadIdx.x, kBlock);
-        // printf("blockIdx.x = %d threadIdx.x: %d elementsPerBlock: %lld\n", blockIdx.x, threadIdx.x, elementsPerBlock);
-        // printf("blockIdx.x = %d threadIdx.x: %d blockStart: %lld\n", blockIdx.x, threadIdx.x, blockStart);
-        // printf("blockIdx.x = %d threadIdx.x = %d numSegment: %lld\n", blockIdx.x, threadIdx.x, numSegment);
-        // printf("blockIdx.x = %d threadIdx.x = %d jOffset: %lld\n", blockIdx.x, threadIdx.x, jOffset);
-        // printf("blockIdx.x = %d threadIdx.x = %d iOffset: %lld\n", blockIdx.x, threadIdx.x, iOffset);
-        // printf("blockIdx.x = %d threadIdx.x = %d iBlock: %lld\n", blockIdx.x, threadIdx.x, iBlock);
-        // printf("blockIdx.x = %d threadIdx.x = %d iNextBlock: %lld\n", blockIdx.x, threadIdx.x, iNextBlock);
-        // printf("blockIdx.x = %d threadIdx.x = %d jBlock: %lld\n", blockIdx.x, threadIdx.x, jBlock);
-        // printf("blockIdx.x = %d threadIdx.x = %d jNextBlock: %lld\n", blockIdx.x, threadIdx.x, jNextBlock);
-        // printf("blockIdx.x = %d threadIdx.x = %d kBlock: %lld\n", blockIdx.x, threadIdx.x, kBlock);
-        // printf("YYYYYYYYY blockIdx.x = %d threadIdx.x = %d nBlock: %lld mBlock: %lld\n", blockIdx.x, threadIdx.x, nBlock, mBlock);
+    if (kBlock < n && k < actualSize)
+    {
         long long i = coRank(sharedArr, dim, target, nBlock, mBlock, nBlock, 0, k);
         long long j = k - i + nBlock;
-        // printf("FINISHED blockIdx.x = %d threadIdx.x = %d k: %lld, i: %lld\n", blockIdx.x, threadIdx.x, k, i);
         long long kNext = k + threadSize < actualSize ? k + threadSize : actualSize;
-        // printf("xxxxxxxxxxx blockIdx.x = %d threadIdx.x = %d k: %lld, kNext: %lld\n", blockIdx.x, threadIdx.x, k, kNext);
         long long iNext = coRank(sharedArr, dim, target, nBlock, mBlock, nBlock, 0, kNext);
         long long jNext = kNext - iNext + nBlock;
-
-        // printf("xxxxxxxx blockIdx.x = %d threadIdx.x = %d k: %lld, i: %lld, iNext: %lld\n", blockIdx.x, threadIdx.x, k, i, iNext);
-        // printf("xxxxxxxx blockIdx.x = %d threadIdx.x = %d k: %lld, j: %lld, jNext: %lld\n", blockIdx.x, threadIdx.x, k, j, jNext);
 
         // sequential merge
         long long n = iNext - i;
@@ -243,20 +252,16 @@ __global__ void mergeSort(float* data, int* labels, float* target, long long n, 
         sequintialMergeSegment(sharedArr + i * dim, sharedArr + j * dim, output + k * dim, target, n, m, dim);
     }
     __syncthreads();
-    // if (threadIdx.x == 0 && blockIdx.x == 0) {
-    //     printf("here 10");
-    // }
 
-    if (numSegment < totalNumberOfSegments) {
+    if (kBlock < n)
+    {
         // copy output to data
-        for (long long i = threadIdx.x; i < elementsPerBlock; i += blockDim.x) {
-            for (int j = 0; j < dim; j++) {
+        for (long long i = threadIdx.x; i < elementsPerBlock; i += blockDim.x)
+        {
+            for (int j = 0; j < dim; j++)
+            {
                 data[(i + kBlock) * dim + j] = output[i * dim + j];
             }
         }
     }
-    __syncthreads();
-    // if (threadIdx.x == 0 && blockIdx.x == 0) {
-    //     printf("here 90");
-    // }
 }
