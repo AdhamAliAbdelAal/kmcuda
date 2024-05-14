@@ -168,8 +168,8 @@ __global__ void printArr(float *data, int n, int dim, float *target)
 __global__ void mergeSort(float *data, int *labels, float *target, long long n, int dim, long long threadSize,
                           long long sortedSize)
 {
-    if (blockIdx.x == 0 && threadIdx.x == 0)
-        printf("done-1\n");
+    // if (blockIdx.x == 0 && threadIdx.x == 0)
+    //     printf("done-1\n");
     threadSize = threadSize > sortedSize * 2 ? sortedSize * 2 : threadSize;
 
     long long maxElementsPerBlock = blockDim.x * threadSize > sortedSize * 2 ? sortedSize * 2 : blockDim.x * threadSize;
@@ -183,8 +183,8 @@ __global__ void mergeSort(float *data, int *labels, float *target, long long n, 
     __shared__ long long kNextBlock;
     __shared__ long long jOffset;
     __shared__ long long iOffset;
-    if (blockIdx.x == 0 && threadIdx.x == 0)
-        printf("done0\n");
+    // if (blockIdx.x == 0 && threadIdx.x == 0)
+    //     printf("done0\n");
     if (threadIdx.x == 0)
     {
         long long numBlocksPerSortedSize = (2 * sortedSize + maxElementsPerBlock - 1) / maxElementsPerBlock;
@@ -217,8 +217,8 @@ __global__ void mergeSort(float *data, int *labels, float *target, long long n, 
     }
 
     __syncthreads();
-    if (blockIdx.x == 0 && threadIdx.x == 0)
-        printf("done1\n");
+    // if (blockIdx.x == 0 && threadIdx.x == 0)
+    //     printf("done1\n");
 
     long long nBlock = 0, mBlock = 0;
     extern __shared__ float sharedArr[];
@@ -244,9 +244,9 @@ __global__ void mergeSort(float *data, int *labels, float *target, long long n, 
     }
 
     __syncthreads();
-    if (blockIdx.x == 0 && threadIdx.x == 0)
+    // if (blockIdx.x == 0 && threadIdx.x == 0)
 
-        printf("done2\n");
+    //     printf("done2\n");
 
     long long actualSize = nBlock + mBlock;
     // shared memory for output
@@ -270,8 +270,8 @@ __global__ void mergeSort(float *data, int *labels, float *target, long long n, 
         sequintialMergeSegment(sharedArr + i * dim, sharedArr + j * dim, output + k * dim, target, nn, mm, dim);
     }
     __syncthreads();
-    if (blockIdx.x == 0 && threadIdx.x == 0)
-        printf("done3\n");
+    // if (blockIdx.x == 0 && threadIdx.x == 0)
+    //     printf("done3\n");
     if (kBlock < n)
     {
         // copy output to data
@@ -283,7 +283,7 @@ __global__ void mergeSort(float *data, int *labels, float *target, long long n, 
             }
         }
     }
-    __syncthreads();
-    if (blockIdx.x == 0 && threadIdx.x == 0)
-        printf("done4\n");
+    // __syncthreads();
+    // if (blockIdx.x == 0 && threadIdx.x == 0)
+    //     printf("done4\n");
 }
