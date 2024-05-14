@@ -20,9 +20,36 @@ __device__ float distance(float *point, float *centroid, int nDimensions){
     for(int i = 0; i < nDimensions; i++){
         sum += (point[i] - centroid[i]) * (point[i] - centroid[i]);
     }
-    return sum;
+    return sqrt(sum);
 }
-__global__ void labelingKernel(float *points, float *centroids, float* currentCentroids, int *labels, int *counts, int nPoints, int nDimensions, int nCentroids){
+
+__global__ void ICDKernel(float *centroids, float* ICD, int nDimensions, int nCentroids){
+    // assumes the centroids can be fit in the shared memory and this kernel uses only one block
+    extern __shared__ float centroids_shared[];
+    // usage of blockIdx is redundant as this kernel is designed to be used by only one block
+    // index = threadIdx.x
+    int x = threadIdx.x;
+    int y = threadIdx.y;
+    // printf("x= %d, y= %d\n", x,y);
+    // load the centroids to shared memory
+    for(int j = x; j < nDimensions; j+=blockDim.x){
+            centroids_shared[y*nDimensions+j] = centroids[y*nDimensions+j];
+    }
+    __syncthreads();
+    // calculate the distance between the centroids
+    float temp = distance(centroids_shared + x * nDimensions, centroids_shared + y * nDimensions, nDimensions);
+    // write the distance to the global memory
+    ICD[y*nCentroids+x] = temp;
+}
+
+// __global__ void RIDKernel(float *ICD, float *RID, int nCentroids){
+//     // assumes the ICD can be fit in the shared memory and this kernel uses only one block
+//     extern __shared__ float ICD_shared[];
+//     // for each centroid we need to sort other centroids from closest to farthest and write that in RID
+
+// }
+
+__global__ void labelingKernel(float *points, float *centroids, float* currentCentroids, int *labels, int *counts, float *ICD, int nPoints, int nDimensions, int nCentroids){
     extern __shared__ float centroids_shared[];
     __shared__ int counts_privatization[MAX_CLUSTERS];
     int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -50,13 +77,16 @@ __global__ void labelingKernel(float *points, float *centroids, float* currentCe
     // start labeling
     int label = 0;
     if(index < nPoints){
-        float minDistance = distance(point, centroids_shared, nDimensions);
+        int oldLabel = labels[index];
+        float oldDistance = distance(point, centroids_shared+oldLabel*nDimensions, nDimensions);
+        float minDistance =  oldDistance;
+        label = oldLabel;
         // use register variable instead of global memory location
-        for(int i = 1; i < nCentroids; i++){
-            float d = distance(point, centroids_shared + i * nDimensions, nDimensions);
-            if(index==1){
-                // printf("Distance with centroid %d: %f\n", i, d);
+        for(int i = 0; i < nCentroids; i++){
+            if(i==oldLabel || ICD[oldLabel*nCentroids+i] > 2*oldDistance){
+                continue;
             }
+            float d = distance(point, centroids_shared + i * nDimensions, nDimensions);
             if(d < minDistance){
                 minDistance = d;
                 label = i;
@@ -180,7 +210,7 @@ void cudaErrorCheck(cudaError_t error, string message) {
 }
 void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int nDimensions, int nCentroids, int maxIters){
     // Device Data
-    float *d_points, *d_centroids, *d_oldCentroids, *error_val;
+    float *d_points, *d_centroids, *d_oldCentroids, *error_val, *ICD;
     int *d_labels, *d_counts;
 
     float time;
@@ -202,6 +232,7 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
     // cudaErrorCheck("cudaMalloc d_labels");
     cudaMalloc(&d_counts, nCentroids * sizeof(int));
     // cudaErrorCheck("cudaMalloc d_counts");
+    cudaMalloc(&ICD, nCentroids*nCentroids*sizeof(float));
 
     // Copy data to GPU
     cudaMemcpy(d_points, points, nPoints * nDimensions * sizeof(float), cudaMemcpyHostToDevice);
@@ -217,24 +248,24 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
 
     int updateThreadsPerBlock = UPDATE_BLOCK_SIZE;
     int updateBlocksPerGrid = (nCentroids * nDimensions + updateThreadsPerBlock - 1) / updateThreadsPerBlock;
-
+    dim3 ICDThreadsPerBlock(nCentroids,nCentroids,1);
     for(int i = 0; i < maxIters; i++){
         // initialize counts to 0
         cudaMemset(d_counts, 0, nCentroids * sizeof(int));
         cudaMemset(error_val, 0, sizeof(float));
         cudaMemset(d_centroids, 0, nCentroids * nDimensions * sizeof(float));
         // cudaErrorCheck("cudaMemset d_counts");
-
-
+        ICDKernel<<<1,ICDThreadsPerBlock,nCentroids*nDimensions*sizeof(float)>>>(d_oldCentroids, ICD, nDimensions, nCentroids);
+        cudaErrorCheck(cudaDeviceSynchronize(),"ICDKernel");
         // printf("Iteration %d\n", i);
-        labelingKernel<<<labelingBlocksPerGrid, labelingThreadsPerBlock, nCentroids* nDimensions * sizeof(float)>>>(d_points, d_centroids, d_oldCentroids, d_labels, d_counts, nPoints, nDimensions, nCentroids);
+        labelingKernel<<<labelingBlocksPerGrid, labelingThreadsPerBlock, nCentroids* nDimensions * sizeof(float)>>>(d_points, d_centroids, d_oldCentroids, d_labels, d_counts, ICD, nPoints, nDimensions, nCentroids);
 
         cudaErrorCheck(cudaDeviceSynchronize(),"labelingKernel");
 
         // Update Centroids
         updateKernel<<<updateBlocksPerGrid, updateThreadsPerBlock>>>(d_centroids, d_counts, d_oldCentroids, error_val, nDimensions, nCentroids);
-        cudaDeviceSynchronize();
-        cudaErrorCheck(cudaDeviceSynchronize(),"updateCentroids");
+        // cudaDeviceSynchronize();
+        cudaErrorCheck(cudaDeviceSynchronize(),"updateKernel");
         // printf("updated\n");
         float error;
         cudaMemcpy(&error, error_val, sizeof(float), cudaMemcpyDeviceToHost);
