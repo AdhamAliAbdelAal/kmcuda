@@ -51,6 +51,7 @@ __global__ void ICDKernel(float *centroids, float* ICD, int nDimensions, int nCe
 
 __global__ void labelingKernel(float *points, float *centroids, float* currentCentroids, int *labels, int *counts, float *ICD, int nPoints, int nDimensions, int nCentroids){
     extern __shared__ float centroids_shared[];
+    float * ICD_shared = centroids_shared + nCentroids*nDimensions;
     __shared__ int counts_privatization[MAX_CLUSTERS];
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int tid = threadIdx.x;
@@ -63,6 +64,12 @@ __global__ void labelingKernel(float *points, float *centroids, float* currentCe
         centroids_shared[i] = currentCentroids[i];
         // printf("centroids_shared[%d]: %f\n", i, centroids_shared[i]);
     }
+
+    // load ICD in ICD shared memory
+    for(int i = tid; i < nCentroids*nCentroids; i+=blockDim.x){
+        ICD_shared[i] = ICD[i];
+    }
+
     // synchronize threads to ensure copying centroids
     __syncthreads();
 
@@ -83,7 +90,7 @@ __global__ void labelingKernel(float *points, float *centroids, float* currentCe
         label = oldLabel;
         // use register variable instead of global memory location
         for(int i = 0; i < nCentroids; i++){
-            if(i==oldLabel || ICD[oldLabel*nCentroids+i] > 2*oldDistance){
+            if(i==oldLabel || ICD_shared[oldLabel*nCentroids+i] > 2*oldDistance){
                 continue;
             }
             float d = distance(point, centroids_shared + i * nDimensions, nDimensions);
@@ -258,7 +265,7 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
         ICDKernel<<<1,ICDThreadsPerBlock,nCentroids*nDimensions*sizeof(float)>>>(d_oldCentroids, ICD, nDimensions, nCentroids);
         cudaErrorCheck(cudaDeviceSynchronize(),"ICDKernel");
         // printf("Iteration %d\n", i);
-        labelingKernel<<<labelingBlocksPerGrid, labelingThreadsPerBlock, nCentroids* nDimensions * sizeof(float)>>>(d_points, d_centroids, d_oldCentroids, d_labels, d_counts, ICD, nPoints, nDimensions, nCentroids);
+        labelingKernel<<<labelingBlocksPerGrid, labelingThreadsPerBlock, (nCentroids* nDimensions + nCentroids * nCentroids) * sizeof(float)>>>(d_points, d_centroids, d_oldCentroids, d_labels, d_counts, ICD, nPoints, nDimensions, nCentroids);
 
         cudaErrorCheck(cudaDeviceSynchronize(),"labelingKernel");
 
