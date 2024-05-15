@@ -84,7 +84,7 @@ int main(int argc, char **argv)
     cudaMemcpy(d_data, data, sizeof(float) * n * dim, cudaMemcpyHostToDevice);
     cudaMemcpy(d_labels, labels, sizeof(int) * n, cudaMemcpyHostToDevice);
     cudaMemcpy(d_target, target, sizeof(float) * dim, cudaMemcpyHostToDevice);
-    long long sortedSize = 1;
+    long long sortedSize = 256;
     long long bNumThreads = 32;
     long long bNumBlocks = (n + sortedSize - 1) / (sortedSize);
     // call merge sort kernel
@@ -119,15 +119,18 @@ int main(int argc, char **argv)
 
     while (sortedSize < n)
     {
-        maxElementsPerBlock = min(numThreads * elementsPerThread, sortedSize * 2);
-        numBlocksPerSortedSize = (2 * sortedSize + maxElementsPerBlock - 1) / maxElementsPerBlock;
-        numSortedSize = (n + 2 * sortedSize - 1) / (2 * sortedSize);
-        numBlocks = numSortedSize * numBlocksPerSortedSize;
-        printf("== numBlocks: %lld\n", numBlocks);
-        printf("== 2 * elementsPerBlock: %lld\n", 2 * elementsPerBlock);
+        // maxElementsPerBlock = min(numThreads * elementsPerThread, sortedSize * 2);
+        // numBlocksPerSortedSize = (2 * sortedSize + maxElementsPerBlock - 1) / maxElementsPerBlock;
+        // numSortedSize = (n + 2 * sortedSize - 1) / (2 * sortedSize);
+        // numBlocks = numSortedSize * numBlocksPerSortedSize;
+        // printf("== numBlocks: %lld\n", numBlocks);
+        // printf("== 2 * elementsPerBlock: %lld\n", 2 * elementsPerBlock);
         mergeSort<<<numBlocks, numThreads, 2 * elementsPerBlock * dim * sizeof(float)>>>(
             d_data, d_labels, d_target, n, dim, elementsPerThread, sortedSize);
         cudaError_t cudaStatus = cudaDeviceSynchronize();
+
+        // copy data back to host
+        cudaMemcpy(data, d_data, sizeof(float) * n * dim, cudaMemcpyDeviceToHost);
 
         if (cudaStatus != cudaSuccess)
         {

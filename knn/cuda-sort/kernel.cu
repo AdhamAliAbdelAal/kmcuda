@@ -226,20 +226,40 @@ __global__ void mergeSort(float *data, int *labels, float *target, long long n, 
     {
         // load data to shared memory
         nBlock = iNextBlock - iBlock;
-        for (long long i = threadIdx.x; i < nBlock; i += blockDim.x)
+        mBlock = jNextBlock - jBlock;
+        nBlock = min(maxElementsPerBlock, nBlock);
+        mBlock = min(maxElementsPerBlock, mBlock);
+        nBlock = max(0LL, nBlock);
+        mBlock = max(0LL, mBlock);
+        if (nBlock < 0 || mBlock < 0)
         {
-            for (int j = 0; j < dim; j++)
+            printf("0 nBlock: %lld, mBlock: %lld\n", nBlock, mBlock);
+        }
+        if (nBlock > maxElementsPerBlock || mBlock > maxElementsPerBlock)
+        {
+            printf("max nBlock: %lld, mBlock: %lld, maxElementsPerBlock: %lld\n", nBlock, mBlock, maxElementsPerBlock);
+        }
+        if (nBlock + mBlock <= maxElementsPerBlock)
+        {
+            for (long long i = threadIdx.x; i < nBlock; i += blockDim.x)
             {
-                sharedArr[i * dim + j] = data[(i + iBlock) * dim + j];
+                for (int j = 0; j < dim; j++)
+                {
+                    sharedArr[i * dim + j] = data[(i + iBlock) * dim + j];
+                }
+            }
+            for (long long i = threadIdx.x; i < mBlock; i += blockDim.x)
+            {
+                for (int j = 0; j < dim; j++)
+                {
+                    sharedArr[(i + nBlock) * dim + j] = data[(i + jBlock) * dim + j];
+                }
             }
         }
-        mBlock = jNextBlock - jBlock;
-        for (long long i = threadIdx.x; i < mBlock; i += blockDim.x)
+        else
         {
-            for (int j = 0; j < dim; j++)
-            {
-                sharedArr[(i + nBlock) * dim + j] = data[(i + jBlock) * dim + j];
-            }
+            printf("errrrrrrrror\n");
+            printf("nBlock: %lld, mBlock: %lld, maxElementsPerBlock: %lld\n", nBlock, mBlock, maxElementsPerBlock);
         }
     }
 

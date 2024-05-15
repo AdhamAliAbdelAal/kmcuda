@@ -3,6 +3,10 @@
 
 #include <iostream>
 #include <map>
+// import the necessary libraries for file reading
+#include <fstream>
+#include <sstream>
+#include <string>
 using namespace std;
 
 #define ELEMENTS_PER_THREAD 16
