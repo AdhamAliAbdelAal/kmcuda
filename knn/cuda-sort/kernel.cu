@@ -1,6 +1,6 @@
 #include "./knn.h"
 
-__global__ void calcDistances(float *data, float *target, float *distances, long long n, int dim)
+__global__ void calcDistances(float *data, float *target, float *distances, long long n, int dim, long long totalSize)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < n)
@@ -10,14 +10,15 @@ __global__ void calcDistances(float *data, float *target, float *distances, long
             float sum = 0;
             for (int j = 0; j < dim; j++)
             {
-                sum += (data[i + j * n] - target[j]) * (data[i + j * n] - target[j]);
+                sum += (data[i + j * totalSize] - target[j]) * (data[i + j * totalSize] - target[j]);
             }
             distances[i] = sqrt(sum);
         }
     }
 }
 
-__global__ void bubbleSort(float *data, int *labels, float *distances, long long n, int dim, int sizeToSort)
+__global__ void bubbleSort(float *data, int *labels, float *distances, long long n, int dim, int sizeToSort,
+                           long long totalSize)
 {
 
     long long start = (blockIdx.x * blockDim.x + threadIdx.x) * sizeToSort;
@@ -41,9 +42,9 @@ __global__ void bubbleSort(float *data, int *labels, float *distances, long long
             {
                 for (int l = 0; l < dim; l++)
                 {
-                    float temp = data[i + l * n];
-                    data[i + l * n] = data[j + l * n];
-                    data[j + l * n] = temp;
+                    float temp = data[i + l * totalSize];
+                    data[i + l * totalSize] = data[j + l * totalSize];
+                    data[j + l * totalSize] = temp;
                 }
                 int temp = labels[i];
                 labels[i] = labels[j];

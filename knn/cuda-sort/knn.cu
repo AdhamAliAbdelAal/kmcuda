@@ -1,6 +1,7 @@
 #include "./knn.h"
 
-int k = 0, n = 0, dim = 0;
+long long n = 0;
+int k = 0, dim = 0;
 
 void bubbleSortResult(float *output, float *target)
 {
@@ -82,42 +83,60 @@ int main(int argc, char **argv)
     cudaMalloc(&d_distances, sizeof(float) * n);
 
     // copy data to device
-    cudaMemcpy(d_data, data, sizeof(float) * n * dim, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_labels, labels, sizeof(int) * n, cudaMemcpyHostToDevice);
     cudaMemcpy(d_target, target, sizeof(float) * dim, cudaMemcpyHostToDevice);
 
-    // calculate the distances
-    calcDistances<<<(n + 255) / 256, 256>>>(d_data, d_target, d_distances, n, dim);
-    cudaDeviceSynchronize();
-
-    long long sortedSize = 64;
+    long long sortedSize = 32;
     long long bNumThreads = 64;
-    long long bNumBlocks = (n + sortedSize - 1) / (sortedSize);
-    // call merge sort kernel
-    bubbleSort<<<bNumBlocks, bNumThreads>>>(d_data, d_labels, d_distances, n, dim, sortedSize);
+    long long bNumBlocks = 1;
+    long long segementSize = bNumBlocks * bNumThreads * sortedSize;
+    long long numSegements = (n + segementSize - 1) / segementSize;
+    cudaStream_t *streams = (cudaStream_t *)malloc(sizeof(cudaStream_t) * numSegements);
+    for (int i = 0; i < numSegements; i++)
+    {
+        cudaStreamCreate(&streams[i]);
+    }
+    for (int i = 0; i < numSegements; i++)
+    {
+        long long start = i * segementSize;
+        long long end = min((i + 1) * segementSize, n);
+        long long size = end - start;
+        // copy data to device
+        for (int j = 0; j < dim; j++)
+        {
+            cudaMemcpyAsync(d_data + start + j * n, data + start + j * n, sizeof(float) * size, cudaMemcpyHostToDevice,
+                            streams[i]);
+        }
+        cudaMemcpyAsync(d_labels + start, labels + start, sizeof(int) * size, cudaMemcpyHostToDevice, streams[i]);
 
+        // calculate the distances
+        calcDistances<<<(size + 255) / 256, 256, 0, streams[i]>>>(d_data + start, d_target, d_distances + start, size,
+                                                                  dim, n);
+        // bubble sort
+        bubbleSort<<<bNumBlocks, bNumThreads, 0, streams[i]>>>(d_data + start, d_labels + start, d_distances + start,
+                                                               size, dim, sortedSize, n);
+    }
     // sync
     cudaDeviceSynchronize();
 
-    // copy data back to host
-    cudaMemcpy(data, d_data, sizeof(float) * n * dim, cudaMemcpyDeviceToHost);
+    // // copy data back to host
+    // cudaMemcpy(data, d_data, sizeof(float) * n * dim, cudaMemcpyDeviceToHost);
 
-    //  print data and distance
-    for (int i = 0; i < 10; i++)
-    {
-        for (int j = 0; j < dim; j++)
-        {
-            printf("%f ", data[i + j * n]);
-        }
-        // print distance
-        float dist = 0;
-        for (int j = 0; j < dim; j++)
-        {
-            dist += (data[i + j * n] - target[j]) * (data[i + j * n] - target[j]);
-        }
-        printf("Distance: %f\n", sqrt(dist));
-    }
-    printf("++++++++++++++++++++++++++++++\n");
+    // //  print data and distance
+    // for (int i = 0; i < 10; i++)
+    // {
+    //     for (int j = 0; j < dim; j++)
+    //     {
+    //         printf("%f ", data[i + j * n]);
+    //     }
+    //     // print distance
+    //     float dist = 0;
+    //     for (int j = 0; j < dim; j++)
+    //     {
+    //         dist += (data[i + j * n] - target[j]) * (data[i + j * n] - target[j]);
+    //     }
+    //     printf("Distance: %f\n", sqrt(dist));
+    // }
+    // printf("++++++++++++++++++++++++++++++\n");
     long long elementsPerThread = 64;
     long long numThreads = 16;
     long long elementsPerBlock = numThreads * elementsPerThread;
