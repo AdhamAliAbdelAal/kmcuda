@@ -14,13 +14,15 @@ using namespace std;
 extern int k, n, dim;
 
 // IO functions
-bool read_data(string input_file, float*& data, int*& labels, float*& target);
-bool write_data(string output_file, float* output, int* labelsOutput);
-void print_top(float* data, int* labels, int n, float* target);
+bool read_data(string input_file, float *&data, int *&labels, float *&target);
+bool write_data(string output_file, float *output, int *labelsOutput);
+void print_top(float *data, int *labels, int n, float *target);
 
 // CUDA functions
-__global__ void mergeSort(float* data, int* labels, float* target, long long n, int dim, long long threadSize, long long sortedSize);
-__global__ void bubbleSort(float* data, int* labels, int n, int dim, float* target, int sizeToSort);
-__global__ void printArr(float* data, int n, int dim , float* target);
+__global__ void mergeSort(float *data, int *labels, float *distances, long long n, int dim, long long threadSize,
+                          long long sortedSize);
+__global__ void bubbleSort(float *data, int *labels, float *distances, long long n, int dim, int sizeToSort);
+__global__ void printArr(float *data, int n, int dim, float *target);
+__global__ void calcDistances(float *data, float *target, float *distances, long long n, int dim);
 
 #endif
