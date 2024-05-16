@@ -84,23 +84,22 @@ __global__ void labelingKernel(float *points, float *centroids, float* currentCe
     // start labeling
     int label = 0;
     if(index < nPoints){
-        // int oldLabel = labels[index];
-        // float oldDistance = distance(point, centroids_shared+oldLabel*nDimensions, nDimensions);
-        // float minDistance =  oldDistance;
-        // label = oldLabel;
-        // // use register variable instead of global memory location
-        // for(int i = 0; i < nCentroids; i++){
-        //     if(i==oldLabel || ICD_shared[oldLabel*nCentroids+i] > 2*oldDistance){
-        //         continue;
-        //     }
-        //     float d = distance(point, centroids_shared + i * nDimensions, nDimensions);
-        //     if(d < minDistance){
-        //         minDistance = d;
-        //         label = i;
-        //     }
-        // }
+        int oldLabel = labels[index];
+        float oldDistance = distance(point, centroids_shared+oldLabel*nDimensions, nDimensions);
+        float minDistance =  oldDistance;
+        label = oldLabel;
+        // use register variable instead of global memory location
+        for(int i = 0; i < nCentroids; i++){
+            if(i==oldLabel || ICD_shared[oldLabel*nCentroids+i] > 2*oldDistance){
+                continue;
+            }
+            float d = distance(point, centroids_shared + i * nDimensions, nDimensions);
+            if(d < minDistance){
+                minDistance = d;
+                label = i;
+            }
+        }
         // write the value back to global memory
-        label = index % nCentroids;
         labels[index] = label;
         // printf("Point %d: Label %d Distance %f\n", index, label, minDistance);
     }
@@ -279,10 +278,10 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
         cudaMemcpy(&error, error_val, sizeof(float), cudaMemcpyDeviceToHost);
         cudaErrorCheck(cudaDeviceSynchronize(),"cudaMemcpy error");
         // printf("Error: %f\n", error);
-        // if(error < MAX_ERR){
-        //     printf("Converged\n");
-        //     break;
-        // }
+        if(error < MAX_ERR){
+            printf("Converged\n");
+            break;
+        }
     }
     cudaMemcpy(centroids, d_centroids, nCentroids * nDimensions * sizeof(float), cudaMemcpyDeviceToHost);
     // cudaErrorCheck("cudaMemcpy centroids");
