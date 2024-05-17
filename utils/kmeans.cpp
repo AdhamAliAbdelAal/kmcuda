@@ -23,6 +23,14 @@ void readMatrix(FILE* file, float* A, int m, int n){
     }
 }
 
+void readMatrixTranspose(FILE* file, float* A, int m, int n){
+    for(int i = 0; i < n; i++){
+        for(int j = 0; j < m; j++){
+            fscanf(file, "%f", &A[j*n+i]);
+        }
+    }
+}
+
 FILE* openFile(char* filename, string mode){
     FILE* file = fopen(filename, mode.c_str());
     if (file == NULL){
@@ -37,7 +45,7 @@ void readData(FILE* file, int& nPoints, int& nDimensions, int& nCentroids, int& 
     centroids = allocateMatrix(nCentroids, nDimensions);
     points = allocateMatrix(nPoints, nDimensions);
     readMatrix(file, centroids, nCentroids, nDimensions);
-    readMatrix(file, points, nPoints, nDimensions);
+    readMatrixTranspose(file, points, nPoints, nDimensions);
 }
 
 void printData(int nPoints, int nDimensions, int nCentroids, int maxIters, float* points, float* centroids){

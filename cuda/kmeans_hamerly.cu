@@ -15,10 +15,19 @@ using namespace std;
 #define LABELING_BLOCK_SIZE 1024
 #define UPDATE_BLOCK_SIZE 256
 
-__device__ float distance(float *point, float *centroid, int nDimensions){
+__device__ float distance(float *point, float *centroid, int nDimensions, int nPoints=-1){
     float sum = 0;
-    for(int i = 0; i < nDimensions; i++){
-        sum += (point[i] - centroid[i]) * (point[i] - centroid[i]);
+    if(~nPoints){
+        for(int i = 0; i < nDimensions; ++i){
+            float temp = point[i*nPoints];
+            sum += (temp - centroid[i]) * (temp - centroid[i]);
+        }
+    }
+    else{
+        for(int i = 0; i < nDimensions; ++i){
+            float temp = point[i];
+            sum += (temp - centroid[i]) * (temp - centroid[i]);
+        }   
     }
     return sqrt(sum);
 }
@@ -80,12 +89,12 @@ __global__ void labelingKernel(float *points, float *centroids, float* currentCe
     //     point[i] = points[index * nDimensions + i];
     // }  
 
-    float * point = points + index * nDimensions;
+    float * point = points + index;
     // start labeling
     int label = 0;
     if(index < nPoints){
         int oldLabel = labels[index];
-        float oldDistance = distance(point, centroids_shared+oldLabel*nDimensions, nDimensions);
+        float oldDistance = distance(point, centroids_shared+oldLabel*nDimensions, nDimensions, nPoints);
         float minDistance =  oldDistance;
         label = oldLabel;
         // use register variable instead of global memory location
@@ -93,7 +102,7 @@ __global__ void labelingKernel(float *points, float *centroids, float* currentCe
             if(i==oldLabel || ICD_shared[oldLabel*nCentroids+i] > 2*oldDistance){
                 continue;
             }
-            float d = distance(point, centroids_shared + i * nDimensions, nDimensions);
+            float d = distance(point, centroids_shared + i * nDimensions, nDimensions, nPoints);
             if(d < minDistance){
                 minDistance = d;
                 label = i;
@@ -123,7 +132,7 @@ __global__ void labelingKernel(float *points, float *centroids, float* currentCe
         atomicAdd(counts_privatization + label, 1);
         // printf("point %d add to label %d\n", index, label);
         for(int i = 0; i < nDimensions; i++){
-            atomicAdd(centroids_shared + label * nDimensions + i, point[i]);
+            atomicAdd(centroids_shared + label * nDimensions + i, point[i*nPoints]);
         }
     }
 
@@ -264,7 +273,7 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
         // cudaErrorCheck("cudaMemset d_counts");
         ICDKernel<<<1,ICDThreadsPerBlock,nCentroids*nDimensions*sizeof(float)>>>(d_oldCentroids, ICD, nDimensions, nCentroids);
         cudaErrorCheck(cudaDeviceSynchronize(),"ICDKernel");
-        // printf("Iteration %d\n", i);
+        printf("Iteration %d\n", i);
         labelingKernel<<<labelingBlocksPerGrid, labelingThreadsPerBlock, (nCentroids* nDimensions + nCentroids * nCentroids) * sizeof(float)>>>(d_points, d_centroids, d_oldCentroids, d_labels, d_counts, ICD, nPoints, nDimensions, nCentroids);
 
         cudaErrorCheck(cudaDeviceSynchronize(),"labelingKernel");
@@ -277,7 +286,7 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
         float error;
         cudaMemcpy(&error, error_val, sizeof(float), cudaMemcpyDeviceToHost);
         cudaErrorCheck(cudaDeviceSynchronize(),"cudaMemcpy error");
-        // printf("Error: %f\n", error);
+        printf("Error: %f\n", error);
         if(error < MAX_ERR){
             printf("Converged\n");
             break;
@@ -317,7 +326,7 @@ void readData(FILE* file, int& nPoints, int& nDimensions, int& nCentroids, int& 
     centroids = allocateMatrix(nCentroids, nDimensions);
     points = allocateMatrix(nPoints, nDimensions);
     readMatrix(file, centroids, nCentroids, nDimensions);
-    readMatrix(file, points, nPoints, nDimensions);
+    readMatrix(file, points, nDimensions, nPoints);
 }
 
 void printData(int nPoints, int nDimensions, int nCentroids, int maxIters, float* points, float* centroids){

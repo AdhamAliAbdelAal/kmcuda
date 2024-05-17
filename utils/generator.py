@@ -14,11 +14,12 @@ result_file = sys.argv[6]
 limit = -1000
 points = np.random.uniform(-limit,limit,(n_points, n_features)).astype(np.float32)
 centroids,_ = kmeans_plusplus(points, n_clusters)
+points= points.T
 
 # write those to output file
 with open(output_file, 'w') as f:
     f.write(f"{n_points} {n_features} {n_clusters} {max_iter}\n")
     for i in range(n_clusters):
         f.write(" ".join([str(x) for x in centroids[i]]) + "\n")
-    for i in range(n_points):
+    for i in range(n_features):
         f.write(" ".join([str(x) for x in points[i]]) + "\n")
