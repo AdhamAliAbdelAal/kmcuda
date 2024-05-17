@@ -273,7 +273,7 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
         // cudaErrorCheck("cudaMemset d_counts");
         ICDKernel<<<1,ICDThreadsPerBlock,nCentroids*nDimensions*sizeof(float)>>>(d_oldCentroids, ICD, nDimensions, nCentroids);
         cudaErrorCheck(cudaDeviceSynchronize(),"ICDKernel");
-        printf("Iteration %d\n", i);
+        // printf("Iteration %d\n", i);
         labelingKernel<<<labelingBlocksPerGrid, labelingThreadsPerBlock, (nCentroids* nDimensions + nCentroids * nCentroids) * sizeof(float)>>>(d_points, d_centroids, d_oldCentroids, d_labels, d_counts, ICD, nPoints, nDimensions, nCentroids);
 
         cudaErrorCheck(cudaDeviceSynchronize(),"labelingKernel");
@@ -286,7 +286,7 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
         float error;
         cudaMemcpy(&error, error_val, sizeof(float), cudaMemcpyDeviceToHost);
         cudaErrorCheck(cudaDeviceSynchronize(),"cudaMemcpy error");
-        printf("Error: %f\n", error);
+        // printf("Error: %f\n", error);
         if(error < MAX_ERR){
             printf("Converged\n");
             break;
