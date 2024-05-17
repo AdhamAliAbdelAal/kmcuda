@@ -74,7 +74,6 @@ __device__ long long coRank(float *data, int dim, float *distances, long long n,
 
     long long iLow = max(k - m, iOffset);
     long long iHigh = min(n + iOffset, k);
-    long long tttt = 0;
     while (true)
     {
         long long i = (iHigh - iLow) / 2 + iLow;
@@ -83,18 +82,6 @@ __device__ long long coRank(float *data, int dim, float *distances, long long n,
         if ((iLow == iHigh - 1 || iLow == iHigh))
         {
             takeAction = true;
-        }
-        tttt++;
-        if (tttt == 1000000)
-        {
-
-            printf("stuck blockIdx.x %d threadIdx.x = %d i: %lld, j: %lld, iLow: %lld, iHigh: %lld\n", blockIdx.x,
-                   threadIdx.x, i, j, iLow, iHigh);
-            printf("stuck threadIdx.x = %d max(k - m, iOffset): %lld, min(n + iOffset, k): %lld\n", threadIdx.x,
-                   max(k - m, iOffset), min(n + iOffset, k));
-            printf("stuck jOffset: %lld, iOffset: %lld, k: %lld\n", jOffset, iOffset, k);
-            printf("stuck n: %lld, m: %lld\n", n, m);
-            // return i;
         }
         if (i > iOffset && j < m + jOffset && distances[i - 1] > distances[j])
         {
@@ -199,8 +186,7 @@ __global__ void mergeSort(float *data, int *labels, float *distances, long long 
     __shared__ long long kNextBlock;
     __shared__ long long jOffset;
     __shared__ long long iOffset;
-    // if (blockIdx.x == 0 && threadIdx.x == 0)
-    //     printf("done0\n");
+
     if (threadIdx.x == 0)
     {
         long long numBlocksPerSortedSize = (2 * sortedSize + maxElementsPerBlock - 1) / maxElementsPerBlock;
@@ -233,8 +219,6 @@ __global__ void mergeSort(float *data, int *labels, float *distances, long long 
     }
 
     __syncthreads();
-    // if (blockIdx.x == 0 && threadIdx.x == 0)
-    //     printf("done1\n");
 
     long long actualSize = 0;
     long long nBlock = 0, mBlock = 0;
@@ -252,37 +236,21 @@ __global__ void mergeSort(float *data, int *labels, float *distances, long long 
         actualSize = nBlock + mBlock;
         distancesShared = sharedArr + 2 * actualSize * dim;
         outputDistances = distancesShared + actualSize;
-        if (nBlock < 0 || mBlock < 0)
+        for (long long i = threadIdx.x; i < nBlock; i += blockDim.x)
         {
-            printf("0 nBlock: %lld, mBlock: %lld\n", nBlock, mBlock);
-        }
-        if (nBlock > maxElementsPerBlock || mBlock > maxElementsPerBlock)
-        {
-            printf("max nBlock: %lld, mBlock: %lld, maxElementsPerBlock: %lld\n", nBlock, mBlock, maxElementsPerBlock);
-        }
-        if (nBlock + mBlock <= maxElementsPerBlock)
-        {
-            for (long long i = threadIdx.x; i < nBlock; i += blockDim.x)
+            for (int j = 0; j < dim; j++)
             {
-                for (int j = 0; j < dim; j++)
-                {
-                    sharedArr[i + j * actualSize] = data[(i + iBlock) + j * n];
-                }
-                distancesShared[i] = distances[i + iBlock];
+                sharedArr[i + j * actualSize] = data[(i + iBlock) + j * n];
             }
-            for (long long i = threadIdx.x; i < mBlock; i += blockDim.x)
-            {
-                for (int j = 0; j < dim; j++)
-                {
-                    sharedArr[(i + nBlock) + j * actualSize] = data[(i + jBlock) + j * n];
-                }
-                distancesShared[i + nBlock] = distances[i + jBlock];
-            }
+            distancesShared[i] = distances[i + iBlock];
         }
-        else
+        for (long long i = threadIdx.x; i < mBlock; i += blockDim.x)
         {
-            printf("errrrrrrrror\n");
-            printf("nBlock: %lld, mBlock: %lld, maxElementsPerBlock: %lld\n", nBlock, mBlock, maxElementsPerBlock);
+            for (int j = 0; j < dim; j++)
+            {
+                sharedArr[(i + nBlock) + j * actualSize] = data[(i + jBlock) + j * n];
+            }
+            distancesShared[i + nBlock] = distances[i + jBlock];
         }
     }
 
@@ -310,8 +278,7 @@ __global__ void mergeSort(float *data, int *labels, float *distances, long long 
                                outputDistances + k, nn, mm, dim, actualSize);
     }
     __syncthreads();
-    // if (blockIdx.x == 0 && threadIdx.x == 0)
-    //     printf("done3\n");
+
     if (kBlock < n)
     {
         // copy output to data
@@ -324,7 +291,4 @@ __global__ void mergeSort(float *data, int *labels, float *distances, long long 
             distances[i + kBlock] = outputDistances[i];
         }
     }
-    // __syncthreads();
-    // if (blockIdx.x == 0 && threadIdx.x == 0)
-    //     printf("done4\n");
 }
