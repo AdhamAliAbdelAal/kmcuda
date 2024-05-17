@@ -85,7 +85,7 @@ int main(int argc, char **argv)
     // copy data to device
     cudaMemcpy(d_target, target, sizeof(float) * dim, cudaMemcpyHostToDevice);
 
-    long long sortedSize = 32;
+    long long sortedSize = 8;
     long long bNumThreads = 64;
     long long bNumBlocks = 1;
     long long segementSize = bNumBlocks * bNumThreads * sortedSize;
