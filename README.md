@@ -10,10 +10,9 @@ Welcome to the Project Title repository! This project includes a series of Googl
 
 ## Notebooks
 
-- [CUDA K-means](https://colab.research.google.com/drive/1to9tdDB2ZSDcMHyOJUMyImBYUpNjLLlX#scrollTo=8ZK9swhzPand)
-- [CPU K-means](https://colab.research.google.com/drive/1tPC_UrZiwcsH_nbBzaofRmgiK7Umo44x#scrollTo=PnWPnYjO6NtK)
-- [Notebook 3](https://colab.research.google.com/drive/dummy_link_3)
-- [Notebook 4](https://colab.research.google.com/drive/dummy_link_4)
+- <a href="https://colab.research.google.com/drive/1to9tdDB2ZSDcMHyOJUMyImBYUpNjLLlX#scrollTo=8ZK9swhzPand" target="_blank">CUDA K-means</a>
+- <a href="https://colab.research.google.com/drive/1tPC_UrZiwcsH_nbBzaofRmgiK7Umo44x#scrollTo=PnWPnYjO6NtK" target="_blank">CPU K-means</a>
+
 
 ## License
 
