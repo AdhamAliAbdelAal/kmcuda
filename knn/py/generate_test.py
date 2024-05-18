@@ -21,7 +21,7 @@ array_size = 10000000
 test_example, array, labels = generate_test_case(array_size, dim=dim)
 
 # Write the result to a file
-output_dir = "tests"
+output_dir = "./tests"
 output_file = f"{output_dir}/test_{array_size}_{dim}.txt"
 with open(output_file, "w") as file:
     # write k
