@@ -136,8 +136,8 @@ int main(int argc, char **argv)
     //     printf("Distance: %f\n", sqrt(dist));
     // }
     // printf("++++++++++++++++++++++++++++++\n");
-    long long elementsPerThread = 64;
-    long long numThreads = 16;
+    long long elementsPerThread = 4;
+    long long numThreads = 256;
     long long elementsPerBlock = numThreads * elementsPerThread;
     long long maxElementsPerBlock = min(numThreads * elementsPerThread, sortedSize * 2);
     long long numBlocksPerSortedSize = (2 * sortedSize + maxElementsPerBlock - 1) / maxElementsPerBlock;
@@ -212,6 +212,8 @@ int main(int argc, char **argv)
     // free device memory
     cudaFree(d_data);
     cudaFree(d_labels);
+    cudaFree(d_target);
+    cudaFree(d_distances);
 
     // Write output
     write_data(output_file, data, labelsOutput);
