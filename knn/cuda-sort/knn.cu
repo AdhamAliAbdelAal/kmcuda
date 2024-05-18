@@ -165,7 +165,7 @@ int main(int argc, char **argv)
             return 1;
         }
         sortedSize *= 2;
-        printf("== sortedSize: %lld\n", sortedSize);
+        // printf("== sortedSize: %lld\n", sortedSize);
         // printArr<<<1, 1>>>(d_data, 5, dim, d_distances);
         // break;
     }
