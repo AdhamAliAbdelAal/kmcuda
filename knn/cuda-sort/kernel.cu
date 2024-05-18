@@ -31,13 +31,8 @@ __global__ void bubbleSort(float *data, int *labels, float *distances, long long
     {
         for (int j = i + 1; j < end; j++)
         {
-            float dist1 = 0;
-            float dist2 = 0;
-            for (int l = 0; l < dim; l++)
-            {
-                dist1 += distances[i];
-                dist2 += distances[j];
-            }
+            float dist1 = distances[i];
+            float dist2 = distances[j];
             if (dist1 > dist2)
             {
                 for (int l = 0; l < dim; l++)
