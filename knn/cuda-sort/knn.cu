@@ -106,7 +106,6 @@ int main(int argc, char **argv)
             cudaMemcpyAsync(d_data + start + j * n, data + start + j * n, sizeof(float) * size, cudaMemcpyHostToDevice,
                             streams[i]);
         }
-        cudaMemcpyAsync(d_labels + start, labels + start, sizeof(int) * size, cudaMemcpyHostToDevice, streams[i]);
 
         // calculate the distances
         calcDistances<<<(size + 255) / 256, 256, 0, streams[i]>>>(d_data + start, d_target, d_distances + start, size,
