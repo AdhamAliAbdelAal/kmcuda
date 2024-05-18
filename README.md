@@ -11,7 +11,7 @@ K-means and K-nn implementation on NVIDIA GPU / CUDA
 ## K-means Notebooks
 - <a href="https://colab.research.google.com/drive/1to9tdDB2ZSDcMHyOJUMyImBYUpNjLLlX#scrollTo=8ZK9swhzPand" target="_blank">CUDA K-means</a>
 - <a href="https://colab.research.google.com/drive/1tPC_UrZiwcsH_nbBzaofRmgiK7Umo44x#scrollTo=PnWPnYjO6NtK" target="_blank">CPU K-means</a>
-<p style="color:red;"><strong>Note:</strong> you may change parameters in dataset generation cell to you desired ones like (n_points, n_features, n_clusters, max_iter, output_file, limit, the distribution data generated from and centroids initialization) but you must follow the scheme defined in the cell text.</p>
+$${\color{red}you \space \color{red}may \space \color{red}change\space \color{red} parameters\space \color{red} in\space \color{red} dataset\space \color{red} generation\space \color{red} cell\space \color{red} to\space \color{red} you\space \color{red} desired\space \color{red} ones\space \color{red} like\space \color{red} (n\_points, n\_features, n\_clusters, max\_iter, output\_file, limit, the\space distribution\space data\space generated\space from\space and\space centroids\space initialization\space)\space but\space you\space must\space follow\space the\space scheme\space defined\space in\space the\space cell\space text.}$$
 
 ## KNN Notebooks
 
