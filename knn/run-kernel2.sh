@@ -13,7 +13,7 @@ print_yellow() {
 }
 
 print_yellow "Compiling knn.cu\n"
-nvcc cuda-sort/*.cu -o "$exec_file" -G -g
+nvcc cuda/*.cu -o "$exec_file" -G -g
 
 if [ $? -eq 0 ]; then
     print_yellow "Compilation successful. Running $exec_file with $test_file and saving output to $out_file\n"

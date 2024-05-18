@@ -204,9 +204,15 @@ int main(int argc, char **argv)
 
     // allocate memory for output
     float *output = (float *)malloc(sizeof(float) * k * dim);
+    // store start time
+    clock_t start = clock();
 
     knn(data, target, output);
-
+    // store end time
+    clock_t end = clock();
+    // calculate elapsed time   
+    double elapsed_time = double(end - start) / CLOCKS_PER_SEC;
+    cout << "Elapsed time: " << elapsed_time << "s" << endl;
     // Print top k data
     bubbleSortResult(output, target);
 
