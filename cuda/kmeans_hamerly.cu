@@ -309,7 +309,7 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
     cudaEventRecord(stop, 0) ;
     cudaEventSynchronize(stop) ;
     cudaEventElapsedTime(&time, start, stop);
-    printf("Time taken by CUDA K-means: %f seconds\n", time);
+    printf("Time taken by CUDA K-means: %f seconds\n", time/1000);
 }
 
 FILE* openFile(char* filename, string mode){
