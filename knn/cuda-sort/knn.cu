@@ -137,7 +137,7 @@ int main(int argc, char **argv)
     // }
     // printf("++++++++++++++++++++++++++++++\n");
     long long elementsPerThread = 4;
-    long long numThreads = 256;
+    long long numThreads = 128;
     long long elementsPerBlock = numThreads * elementsPerThread;
     long long maxElementsPerBlock = min(numThreads * elementsPerThread, sortedSize * 2);
     long long numBlocksPerSortedSize = (2 * sortedSize + maxElementsPerBlock - 1) / maxElementsPerBlock;
