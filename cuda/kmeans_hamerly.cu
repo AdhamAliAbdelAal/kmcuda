@@ -288,7 +288,7 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
         cudaErrorCheck(cudaDeviceSynchronize(),"cudaMemcpy error");
         // printf("Error: %f\n", error);
         if(error < MAX_ERR){
-            printf("Converged\n");
+            // printf("Converged\n");
             break;
         }
     }
@@ -309,7 +309,7 @@ void kmeans(float * points, float * &centroids, int * &labels,  int nPoints, int
     cudaEventRecord(stop, 0) ;
     cudaEventSynchronize(stop) ;
     cudaEventElapsedTime(&time, start, stop);
-    printf("Time to generate:  %3.1f s \n", time/1000);
+    printf("Time taken by CUDA K-means: %f seconds\n", time);
 }
 
 FILE* openFile(char* filename, string mode){

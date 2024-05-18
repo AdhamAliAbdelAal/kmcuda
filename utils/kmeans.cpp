@@ -1,6 +1,8 @@
 #include <iostream>
 #include <cmath>
+#include <chrono>
 using namespace std;
+using namespace std::chrono;
 
 #define MAX_ERR 1e-6
 
@@ -142,6 +144,7 @@ float getError(float *oldCentroids, float *centroids, int nDimensions, int nCent
     return error;
 }
 void kmeans(float *points, float *centroids, int *labels, int nPoints, int nDimensions, int nCentroids, int maxIters){
+    auto start = high_resolution_clock::now();
     float* oldCentroids = allocateMatrix(nCentroids, nDimensions);
     for(int j = 0; j < nCentroids; j++){
         for(int k = 0; k < nDimensions; k++){
@@ -149,12 +152,12 @@ void kmeans(float *points, float *centroids, int *labels, int nPoints, int nDime
         }
     }
     for(int i=0;i<maxIters;i++){
-        printf("Iteration %d\n", i);
+        // printf("Iteration %d\n", i);
         assignLabels(points, centroids, labels, nPoints, nDimensions, nCentroids);
         // printf("Assign labels Done\n");
         updateCentroids(points, centroids, labels, nPoints, nDimensions, nCentroids);
         float error = getError(oldCentroids, centroids, nDimensions, nCentroids);
-        printf("Error = %f\n", error);
+        // printf("Error = %f\n", error);
         if (error < MAX_ERR){
             break;
         }
@@ -165,6 +168,10 @@ void kmeans(float *points, float *centroids, int *labels, int nPoints, int nDime
         }
     }
     freeMatrix(oldCentroids);
+    auto stop = high_resolution_clock::now();
+    auto duration = duration_cast<seconds>(stop - start);
+    cout << "Time taken by CPU K-means: "
+         << duration.count() << " seconds" << endl;
 }
 
 int main(int argc, char *argv[]){
@@ -182,6 +189,8 @@ int main(int argc, char *argv[]){
     readData(inputFile, nPoints, nDimensions, nCentroids, maxIters, points, centroids);
     // printData(nPoints, nDimensions, nCentroids, maxIters, points, centroids);
     int *labels = (int*)malloc(nPoints * sizeof(int));
+    // initialize time
+
     kmeans(points, centroids, labels, nPoints, nDimensions, nCentroids, maxIters);
     // write output
     writeData(outputFile, centroids, labels, nPoints, nDimensions, nCentroids);
