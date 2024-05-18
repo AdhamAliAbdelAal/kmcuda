@@ -17,8 +17,7 @@ __global__ void calcDistances(float *data, float *target, float *distances, long
     }
 }
 
-__global__ void bubbleSort(float *data, int *labels, float *distances, long long n, int dim, int sizeToSort,
-                           long long totalSize)
+__global__ void bubbleSort(int *indices, float *distances, long long n, int sizeToSort, long long offset)
 {
 
     long long start = (blockIdx.x * blockDim.x + threadIdx.x) * sizeToSort;
@@ -27,27 +26,24 @@ __global__ void bubbleSort(float *data, int *labels, float *distances, long long
     {
         return;
     }
+    // init indices
     for (int i = start; i < end; i++)
     {
-        for (int j = i + 1; j < end; j++)
+        indices[i] = i + offset;
+    }
+    // bubble sort (swich distances and indices)
+    for (int i = start; i < end; i++)
+    {
+        for (int j = start; j < end - i + start - 1; j++)
         {
-            float dist1 = distances[i];
-            float dist2 = distances[j];
-            if (dist1 > dist2)
+            if (distances[j] > distances[j + 1])
             {
-                for (int l = 0; l < dim; l++)
-                {
-                    float temp = data[i + l * totalSize];
-                    data[i + l * totalSize] = data[j + l * totalSize];
-                    data[j + l * totalSize] = temp;
-                }
-                int temp = labels[i];
-                labels[i] = labels[j];
-                labels[j] = temp;
-
-                float tempDist = distances[i];
-                distances[i] = distances[j];
-                distances[j] = tempDist;
+                float temp = distances[j];
+                distances[j] = distances[j + 1];
+                distances[j + 1] = temp;
+                int tempIdx = indices[j];
+                indices[j] = indices[j + 1];
+                indices[j + 1] = tempIdx;
             }
         }
     }
@@ -63,8 +59,8 @@ __device__ float euclidean_distance(float *data, int idx, float *target, int dim
     return sqrt(sum);
 }
 
-__device__ long long coRank(float *data, int dim, float *distances, long long n, long long m, long long jOffset,
-                            long long iOffset, long long k, long long dataN)
+__device__ long long coRank(float *distances, long long n, long long m, long long jOffset, long long iOffset,
+                            long long k)
 {
 
     long long iLow = max(k - m, iOffset);
@@ -98,9 +94,8 @@ __device__ long long coRank(float *data, int dim, float *distances, long long n,
     }
 }
 
-__device__ void sequintialMergeSegment(float *sharedDataA, float *sharedDataB, float *output, float *distancesA,
-                                       float *distancesB, float *outputDistances, long long n, long long m, int dim,
-                                       long long actualSize)
+__device__ void sequintialMergeSegment(int *sharedIndicesA, int *sharedIndicesB, int *outputIndices, float *distancesA,
+                                       float *distancesB, float *outputDistances, long long n, long long m)
 {
     long long i = 0;
     long long j = 0;
@@ -111,19 +106,13 @@ __device__ void sequintialMergeSegment(float *sharedDataA, float *sharedDataB, f
         float dist2 = distancesB[j];
         if (dist1 < dist2)
         {
-            for (int l = 0; l < dim; l++)
-            {
-                output[k + l * actualSize] = sharedDataA[i + l * actualSize];
-            }
+            outputIndices[k] = sharedIndicesA[i];
             outputDistances[k] = dist1;
             i++;
         }
         else
         {
-            for (int l = 0; l < dim; l++)
-            {
-                output[k + l * actualSize] = sharedDataB[j + l * actualSize];
-            }
+            outputIndices[k] = sharedIndicesB[j];
             outputDistances[k] = dist2;
             j++;
         }
@@ -132,10 +121,7 @@ __device__ void sequintialMergeSegment(float *sharedDataA, float *sharedDataB, f
 
     while (i < n)
     {
-        for (int l = 0; l < dim; l++)
-        {
-            output[k + l * actualSize] = sharedDataA[i + l * actualSize];
-        }
+        outputIndices[k] = sharedIndicesA[i];
         outputDistances[k] = distancesA[i];
         i++;
         k++;
@@ -143,30 +129,53 @@ __device__ void sequintialMergeSegment(float *sharedDataA, float *sharedDataB, f
 
     while (j < m)
     {
-        for (int l = 0; l < dim; l++)
-        {
-            output[k + l * actualSize] = sharedDataB[j + l * actualSize];
-        }
+        outputIndices[k] = sharedIndicesB[j];
         outputDistances[k] = distancesB[j];
         j++;
         k++;
     }
 }
 
-__global__ void printArr(float *data, int n, int dim, float *d_distances)
+__global__ void printArr(float *data, int k, int dim, float *d_distances, int *indices, long long n, float *target)
 {
-    for (int i = 0; i < n; i++)
+    // print top k data
+    for (int i = 0; i < k; i++)
     {
+        printf("Data %d: ", i);
         for (int j = 0; j < dim; j++)
         {
-            printf("%f ", data[i + j * n]);
+            printf("%f ", data[indices[i] + j * n]);
         }
-        printf("Distance: %f\n", d_distances[i]);
+
+        printf("Distance: ");
+        float dist = 0;
+        for (int j = 0; j < dim; j++)
+        {
+            dist += (data[indices[i] + j * n] - target[j]) * (data[indices[i] + j * n] - target[j]);
+        }
+        printf("%f %f\n", sqrt(dist), d_distances[i]);
     }
+    // print last k data
+    for (int i = n - k; i < n; i++)
+    {
+        printf("Data %d: ", i);
+        for (int j = 0; j < dim; j++)
+        {
+            printf("%f ", data[indices[i] + j * n]);
+        }
+
+        printf("Distance: ");
+        float dist = 0;
+        for (int j = 0; j < dim; j++)
+        {
+            dist += (data[indices[i] + j * n] - target[j]) * (data[indices[i] + j * n] - target[j]);
+        }
+        printf("%f %f\n", sqrt(dist), d_distances[i]);
+    }
+    printf("\n");
 }
 
-__global__ void mergeSort(float *data, int *labels, float *distances, long long n, int dim, long long threadSize,
-                          long long sortedSize)
+__global__ void mergeSort(int *indices, float *distances, long long n, long long threadSize, long long sortedSize)
 {
     threadSize = threadSize > sortedSize * 2 ? sortedSize * 2 : threadSize;
 
@@ -205,8 +214,8 @@ __global__ void mergeSort(float *data, int *labels, float *distances, long long 
             {
                 iSize = 0;
             }
-            iBlock = coRank(data, dim, distances, iSize, jSize, jOffset, iOffset, kBlock, n);
-            iNextBlock = coRank(data, dim, distances, iSize, jSize, jOffset, iOffset, kNextBlock, n);
+            iBlock = coRank(distances, iSize, jSize, jOffset, iOffset, kBlock);
+            iNextBlock = coRank(distances, iSize, jSize, jOffset, iOffset, kNextBlock);
 
             jBlock = kBlock - iBlock + jOffset;
             jNextBlock = kNextBlock - iNextBlock + jOffset;
@@ -217,8 +226,9 @@ __global__ void mergeSort(float *data, int *labels, float *distances, long long 
 
     long long actualSize = 0;
     long long nBlock = 0, mBlock = 0;
-    extern __shared__ float sharedArr[];
-    float *distancesShared, *output, *outputDistances;
+    extern __shared__ int sharedArr[];
+    int *output;
+    float *distancesShared, *outputDistances;
     if (kBlock < n)
     {
         // load data to shared memory
@@ -229,39 +239,31 @@ __global__ void mergeSort(float *data, int *labels, float *distances, long long 
         nBlock = max(0LL, nBlock);
         mBlock = max(0LL, mBlock);
         actualSize = nBlock + mBlock;
-        distancesShared = sharedArr + 2 * actualSize * dim;
+        output = sharedArr + actualSize;
+        distancesShared = (float *)(sharedArr + 2 * actualSize);
         outputDistances = distancesShared + actualSize;
         for (long long i = threadIdx.x; i < nBlock; i += blockDim.x)
         {
-            for (int j = 0; j < dim; j++)
-            {
-                sharedArr[i + j * actualSize] = data[(i + iBlock) + j * n];
-            }
+            sharedArr[i] = indices[i + iBlock];
             distancesShared[i] = distances[i + iBlock];
         }
         for (long long i = threadIdx.x; i < mBlock; i += blockDim.x)
         {
-            for (int j = 0; j < dim; j++)
-            {
-                sharedArr[(i + nBlock) + j * actualSize] = data[(i + jBlock) + j * n];
-            }
+            sharedArr[i + nBlock] = indices[i + jBlock];
             distancesShared[i + nBlock] = distances[i + jBlock];
         }
     }
 
     __syncthreads();
 
-    // shared memory for output
-    output = sharedArr + actualSize * dim;
-
     long long k = threadIdx.x * threadSize;
     if (kBlock < n && k < actualSize)
     {
         // printf("actualSize: %lld, k: %lld nBlock: %lld, mBlock: %lld\n", actualSize, k, nBlock, mBlock);
-        long long i = coRank(sharedArr, dim, distancesShared, nBlock, mBlock, nBlock, 0, k, actualSize);
+        long long i = coRank(distancesShared, nBlock, mBlock, nBlock, 0, k);
         long long j = k - i + nBlock;
         long long kNext = min(k + threadSize, actualSize);
-        long long iNext = coRank(sharedArr, dim, distancesShared, nBlock, mBlock, nBlock, 0, kNext, actualSize);
+        long long iNext = coRank(distancesShared, nBlock, mBlock, nBlock, 0, kNext);
         long long jNext = kNext - iNext + nBlock;
 
         // sequential merge
@@ -270,7 +272,7 @@ __global__ void mergeSort(float *data, int *labels, float *distances, long long 
 
         // printf("k: %lld, i: %lld, j: %lld, actualSize: %lld, mm: %lld, nn: %lld\n", k, i, j, actualSize, mm, nn);
         sequintialMergeSegment(sharedArr + i, sharedArr + j, output + k, distancesShared + i, distancesShared + j,
-                               outputDistances + k, nn, mm, dim, actualSize);
+                               outputDistances + k, nn, mm);
     }
     __syncthreads();
 
@@ -279,10 +281,7 @@ __global__ void mergeSort(float *data, int *labels, float *distances, long long 
         // copy output to data
         for (long long i = threadIdx.x; i < actualSize; i += blockDim.x)
         {
-            for (int j = 0; j < dim; j++)
-            {
-                data[(i + kBlock) + j * n] = output[i + j * actualSize];
-            }
+            indices[i + kBlock] = output[i];
             distances[i + kBlock] = outputDistances[i];
         }
     }

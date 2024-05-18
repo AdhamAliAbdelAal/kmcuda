@@ -20,11 +20,9 @@ bool write_data(string output_file, float *output, int *labelsOutput);
 void print_top(float *data, int *labels, int n, float *target);
 
 // CUDA functions
-__global__ void mergeSort(float *data, int *labels, float *distances, long long n, int dim, long long threadSize,
-                          long long sortedSize);
-__global__ void bubbleSort(float *data, int *labels, float *distances, long long n, int dim, int sizeToSort,
-                           long long totalSize);
-__global__ void printArr(float *data, int n, int dim, float *target);
+__global__ void mergeSort(int *indices, float *distances, long long n, long long threadSize, long long sortedSize);
+__global__ void bubbleSort(int *indices, float *distances, long long n, int sizeToSort, long long start);
+__global__ void printArr(float *data, int k, int dim, float *d_distances, int *indices, long long n, float *target);
 __global__ void calcDistances(float *data, float *target, float *distances, long long n, int dim, long long totalSize);
 
 #endif
