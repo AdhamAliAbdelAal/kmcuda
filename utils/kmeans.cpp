@@ -99,7 +99,6 @@ void assignLabels(float *points, float *centroids, int *labels, int nPoints, int
                 labels[i] = j;
             }
         }
-        // printf("Point %d: label = %d distance = %f\n", i, labels[i], minDistance);
     }
 }
 
@@ -119,15 +118,12 @@ void updateCentroids(float *points, float *centroids, int *labels, int nPoints, 
         }
     }
     for(int i = 0; i < nCentroids; i++){
-        // printf("count[%d] = %d\n", i, count[i]);
         if(count[i] == 0){
             printf("Warning: empty cluster\n");
         }
         for(int j = 0; j < nDimensions; j++){
             centroids[i*nDimensions+j] /= count[i];
-            // printf("centroid[%d] = %f\n", i*nDimensions+j, centroids[i*nDimensions+j]);
         }
-        // printf("centroid[%d] = %f, %f\n", i, centroids[i*nDimensions], centroids[i*nDimensions+1]);
     }
     free(count);
 }
@@ -137,7 +133,6 @@ float getError(float *oldCentroids, float *centroids, int nDimensions, int nCent
     for(int i = 0; i < nCentroids; i++){
         for(int j = 0; j < nDimensions; j++){
             float temp = abs(oldCentroids[i*nDimensions+j] - centroids[i*nDimensions+j]);
-            // printf("error[%d] = %f\n", i*nDimensions+j, temp);
             error += temp;
         }
     }
@@ -152,12 +147,9 @@ void kmeans(float *points, float *centroids, int *labels, int nPoints, int nDime
         }
     }
     for(int i=0;i<maxIters;i++){
-        // printf("Iteration %d\n", i);
         assignLabels(points, centroids, labels, nPoints, nDimensions, nCentroids);
-        // printf("Assign labels Done\n");
         updateCentroids(points, centroids, labels, nPoints, nDimensions, nCentroids);
         float error = getError(oldCentroids, centroids, nDimensions, nCentroids);
-        // printf("Error = %f\n", error);
         if (error < MAX_ERR){
             break;
         }
@@ -187,10 +179,7 @@ int main(int argc, char *argv[]){
     int nPoints, nDimensions, nCentroids, maxIters;
     float* points, *centroids;
     readData(inputFile, nPoints, nDimensions, nCentroids, maxIters, points, centroids);
-    // printData(nPoints, nDimensions, nCentroids, maxIters, points, centroids);
     int *labels = (int*)malloc(nPoints * sizeof(int));
-    // initialize time
-
     kmeans(points, centroids, labels, nPoints, nDimensions, nCentroids, maxIters);
     // write output
     writeData(outputFile, centroids, labels, nPoints, nDimensions, nCentroids);

@@ -1,7 +1,7 @@
-$numberOfPoints = 10
+$numberOfPoints = 10000
 $numberOfFeatures = 2
 $numberOfClusters = 4
-$maximumNumberOfIterations = 10
+$maximumNumberOfIterations = 10000
 $testCaseFile = "../testcases/testcase01.txt"
 $testResultFile = "../testcases/expected01.txt"
 $pythonFile = '../utils/generator.py'

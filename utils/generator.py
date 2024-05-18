@@ -11,7 +11,7 @@ output_file = sys.argv[5]
 result_file = sys.argv[6]
 
 # centroids = (np.random.rand(n_clusters, n_features).astype(np.float32)*1000).astype(np.int32)
-limit = -1000
+limit = 1000
 points = np.random.uniform(-limit,limit,(n_points, n_features)).astype(np.float32)
 centroids,_ = kmeans_plusplus(points, n_clusters)
 points= points.T
