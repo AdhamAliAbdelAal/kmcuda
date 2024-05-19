@@ -1,44 +1,51 @@
 #include "./knn.h"
 
-bool read_data(string input_file, double*& data, int*& labels,
-    double*& target)
+bool read_data(string input_file, double *&data, int *&labels, double *&target, int *&indices)
 {
-    FILE* file = freopen(input_file.c_str(), "r", stdin);
-    if (file == NULL) {
+    FILE *file = freopen(input_file.c_str(), "r", stdin);
+    if (file == NULL)
+    {
         cout << "Cannot open file " << input_file << endl;
         return false;
     }
     cout << "Reading data from " << input_file << endl;
     cin >> k >> n >> dim;
     cout << "k = " << k << ", n = " << n << ", dim = " << dim << endl;
-    data = (double*)malloc(sizeof(double) * n * dim);
-    labels = (int*)malloc(sizeof(int) * n);
-    target = (double*)malloc(sizeof(double) * dim);
-
-    for (int i = 0; i < dim; i++) {
+    data = (double *)malloc(sizeof(double) * n * dim);
+    labels = (int *)malloc(sizeof(int) * n);
+    target = (double *)malloc(sizeof(double) * dim);
+    indices = (int *)malloc(sizeof(int) * n);
+    for (int i = 0; i < dim; i++)
+    {
         cin >> target[i];
     }
 
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < dim; j++) {
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < dim; j++)
+        {
             cin >> data[i * dim + j];
         }
         cin >> labels[i];
+        indices[i] = i;
     }
     fclose(file);
     return true;
 }
 
-bool write_data(string output_file, double* output, int* labelsOutput)
+bool write_data(string output_file, double *output, int *labelsOutput)
 {
     map<int, int> labelCount;
-    FILE* file = freopen(output_file.c_str(), "w", stdout);
-    if (file == NULL) {
+    FILE *file = freopen(output_file.c_str(), "w", stdout);
+    if (file == NULL)
+    {
         cout << "Cannot open file " << output_file << endl;
         return false;
     }
-    for (int i = 0; i < k; i++) {
-        for (int j = 0; j < dim; j++) {
+    for (int i = 0; i < k; i++)
+    {
+        for (int j = 0; j < dim; j++)
+        {
             // set precision to 10 decimal places
             cout << fixed;
             cout.precision(10);
@@ -51,8 +58,10 @@ bool write_data(string output_file, double* output, int* labelsOutput)
     int winner = -1;
     int maxCount = 0;
 
-    for (auto it = labelCount.begin(); it != labelCount.end(); it++) {
-        if (it->second > maxCount) {
+    for (auto it = labelCount.begin(); it != labelCount.end(); it++)
+    {
+        if (it->second > maxCount)
+        {
             maxCount = it->second;
             winner = it->first;
         }
@@ -63,17 +72,20 @@ bool write_data(string output_file, double* output, int* labelsOutput)
     return true;
 }
 
-void print_top(double* data, int* labels, int n, double* target)
+void print_top(double *data, int *labels, int n, double *target)
 {
     cout << "Target data: ";
-    for (int i = 0; i < dim; i++) {
+    for (int i = 0; i < dim; i++)
+    {
         cout << target[i] << " ";
     }
     cout << endl;
     cout << "Top " << n << " data:" << endl;
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++)
+    {
         cout << "Data " << i << ": ";
-        for (int j = 0; j < dim; j++) {
+        for (int j = 0; j < dim; j++)
+        {
             cout << data[i * dim + j] << " ";
         }
         cout << "Label: " << labels[i] << endl;

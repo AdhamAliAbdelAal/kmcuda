@@ -27,9 +27,9 @@ __device__ double euclidean_distance(double *data, int idx, double *target, int 
     return sqrt(sum);
 }
 
-__device__ void sortElements(double *data, double *distances, double *distancesOut, long long startElement,
-                             long long endElement, long long startElementCopy, long long endElementCopy, double *target,
-                             int k, int *nearesrtNeighborsIdxs, int dim)
+__device__ void sortElements(double *distances, double *distancesOut, long long startElement, long long endElement,
+                             long long startElementCopy, long long endElementCopy, double *target, int k,
+                             int *nearesrtNeighborsIdxs)
 {
     // Initialize nearestNeighborsIdxs and distancesOut with initial k values
     for (int i = 0; i < k; i++)
@@ -62,8 +62,8 @@ __device__ void sortElements(double *data, double *distances, double *distancesO
     }
 }
 
-__global__ void knn(double *data, int *labels, double *distances, int threadSize, long long n, int dim, int k,
-                    double *target, double *output, int *labelsOutput, double *distancesOut)
+__global__ void knn(int *indices, double *distances, int threadSize, long long n, int k, double *target, int *output,
+                    double *distancesOut)
 {
     // print thread info
     long long startElement = (blockIdx.x * blockDim.x + threadIdx.x) * threadSize;
@@ -78,16 +78,12 @@ __global__ void knn(double *data, int *labels, double *distances, int threadSize
         long long endElementCopy = startElementCopy + k - 1;
 
         int *nearesrtNeighborsIdxs = (int *)malloc(sizeof(int) * k);
-        sortElements(data, distances, distancesOut, startElement, endElement, startElementCopy, endElementCopy, target,
-                     k, nearesrtNeighborsIdxs, dim);
+        sortElements(distances, distancesOut, startElement, endElement, startElementCopy, endElementCopy, target, k,
+                     nearesrtNeighborsIdxs);
 
         for (long long i = startElementCopy; i <= endElementCopy; i++)
         {
-            for (int j = 0; j < dim; j++)
-            {
-                output[i * dim + j] = data[nearesrtNeighborsIdxs[i - startElementCopy] * dim + j];
-            }
-            labelsOutput[i] = labels[nearesrtNeighborsIdxs[i - startElementCopy]];
+            output[i] = indices[nearesrtNeighborsIdxs[i - startElementCopy]];
         }
         free(nearesrtNeighborsIdxs);
     }
