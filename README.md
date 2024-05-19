@@ -17,8 +17,10 @@ K-means and K-nn implementation on NVIDIA GPU / CUDA
 
 ## KNN Notebooks
 
-- <a href="https://colab.research.google.com/drive/1to9tdDB2ZSDcMHyOJUMyImBYUpNjLLlX#scrollTo=8ZK9swhzPand" target="_blank">CUDA KNN</a>
-- <a href="https://colab.research.google.com/drive/1tPC_UrZiwcsH_nbBzaofRmgiK7Umo44x#scrollTo=PnWPnYjO6NtK" target="_blank">CPU KNN</a>
+- <a href="https://colab.research.google.com/drive/1QIZWsNBGc4EBXvWLljrxPsrTBbvJj5_Q?usp=sharing" target="_blank">CUDA - CPU KNN</a>
+
+<strong>Note:</strong> <code style = "color : red">The parameters are at the first cell, the parameters are k: number of nearest neighbors, dim: vectors dimensions and array_size: the number of vectors.</code>
+</p>
 
 ## <img  align="center" width= 70px height =55px src="https://media0.giphy.com/media/Xy702eMOiGGPzk4Zkd/giphy.gif?cid=ecf05e475vmf48k83bvzye3w2m2xl03iyem3tkuw2krpkb7k&rid=giphy.gif&ct=s"> Contributors <a id ="contributors"></a>
 
