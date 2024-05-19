@@ -2,3 +2,9 @@
 .vscode
 *.txt
 *.exe
+tests
+out
+results
+prof
+.idea
+cmake-build-debug
